@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import cookielib
 import oauth2 as oauth
 import urllib
 import urllib2
@@ -47,6 +48,12 @@ class OX3APIClient(object):
         # directly so we'll keep them "private".
         self._consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
         self._token = oauth.Token('', '')
+        
+        # Similarly you probably won't need to access the cookie jar directly,
+        # so it is private as well.
+        self._cookie_jar = cookielib.LWPCookieJar()
+        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        urllib2.install_opener(opener)
     
     def _sign_request(self, req):
         """Utility method to sign a request."""
@@ -108,6 +115,25 @@ class OX3APIClient(object):
         """
         res = self.request(url=REQUEST_TOKEN_URL, method='POST', sign=True)
         token = urlparse.parse_qs(res.read())
-        self._token = oauth.Token(token['oauth_token'][0], token['oauth_token_secret'][0])
+        self._token = oauth.Token(
+                        token['oauth_token'][0],
+                        token['oauth_token_secret'][0])
+        
         return self._token
+    
+    def authorize_token(self, email, password):
+        """Helper method to authorize."""
+        data = {
+            'email': email,
+            'password': password,
+            'oauth_token': self._token.key}
+        
+        res = self.request(
+                url=AUTHORIZATION_URL,
+                method='POST',
+                data=data,
+                sign=True)
+        
+        verifier = urlparse.parse_qs(res.read())['oauth_verifier'][0]
+        self._token.set_verifier(verifier)
     
