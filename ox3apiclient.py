@@ -113,7 +113,7 @@ class OX3APIClient(object):
         
         Returns token string.
         """
-        res = self.request(url=REQUEST_TOKEN_URL, method='POST', sign=True)
+        res = self.request(url=self.request_token_url, method='POST', sign=True)
         token = urlparse.parse_qs(res.read())
         self._token = oauth.Token(
                         token['oauth_token'][0],
@@ -129,7 +129,7 @@ class OX3APIClient(object):
             'oauth_token': self._token.key}
         
         res = self.request(
-                url=AUTHORIZATION_URL,
+                url=self.authorization_url,
                 method='POST',
                 data=data,
                 sign=True)
