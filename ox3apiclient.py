@@ -46,8 +46,40 @@ class OX3APIClient(object):
         self._consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
         self._token = oauth.Token('', '')
     
+    def _sign_request(self, req):
+        """Utility method to sign a request."""
+        parameters = {'oauth_callback': self.callback_url}
+        headers = req.headers
+        data = req.data
+        
+        # Add any (POST) data to the parameters to be signed in the OAuth
+        # request as well as store 'stringified' copy for the request's body.
+        if data:
+            parameters.update(data)
+            data = urllib.urlencode(data)
+        
+        # Create a temporary oauth2 Request object and sign it so we can steal
+        # the Authorization header.
+        oauth_req = oauth.Request.from_consumer_and_token(
+            consumer=self._consumer,
+            token=self._token,
+            http_method=req.get_method(),
+            http_url=req.get_full_url(),
+            parameters=parameters,
+            is_form_encoded=True)
+        
+        oauth_req.sign_request(
+            oauth.SignatureMethod_HMAC_SHA1(),
+            self._consumer,
+            self._token)
+        
+        # Update or original requests headers to include the OAuth Authorization
+        # header and return it.
+        req.headers.update(oauth_req.to_header(realm=self.realm))
+        return urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
+    
     def request(self, url, method='GET', headers={}, data=None, sign=False):
-        """Helper method to make a HTTP request."""
+        """Helper method to make a (optionally OAuth signed) HTTP request."""
         
         # Since we are using a urllib2.Request object we need to assign a value
         # other than None to "data" in order to make the request a POST request,
@@ -61,6 +93,9 @@ class OX3APIClient(object):
         # method for any values other than GET or POST.
         if method in HTTP_METHOD_OVERRIDES:
             req.get_method = lambda: method
+        
+        if sign:
+            req = self._sign_request(req)
         
         return urllib2.urlopen(req)
 
