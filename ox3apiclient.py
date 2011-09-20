@@ -3,6 +3,7 @@
 import oauth2 as oauth
 import urllib
 import urllib2
+import urlparse
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
@@ -99,4 +100,14 @@ class OX3APIClient(object):
             req = self._sign_request(req)
         
         return urllib2.urlopen(req)
-
+    
+    def fetch_request_token(self):
+        """Helper method to fetch and set request token.
+        
+        Returns token string.
+        """
+        res = self.request(url=REQUEST_TOKEN_URL, method='POST', sign=True)
+        token = urlparse.parse_qs(res.read())
+        self._token = oauth.Token(token['oauth_token'][0], token['oauth_token_secret'][0])
+        return self._token
+    
