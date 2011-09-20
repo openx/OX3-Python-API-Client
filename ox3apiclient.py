@@ -111,14 +111,10 @@ class OX3APIClient(object):
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
         
-        Returns token string.
+        Returns oauth2.Token object.
         """
         res = self.request(url=self.request_token_url, method='POST', sign=True)
-        token = urlparse.parse_qs(res.read())
-        self._token = oauth.Token(
-                        token['oauth_token'][0],
-                        token['oauth_token_secret'][0])
-        
+        self._token = oauth.Token.from_string(res.read())
         return self._token
     
     def authorize_token(self, email, password):
