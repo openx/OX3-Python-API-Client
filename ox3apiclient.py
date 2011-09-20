@@ -4,16 +4,16 @@ import oauth2 as oauth
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
-AUTHORIZATION_UTL = 'https://sso.openx.com/login/process'
+AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
 API_PATH = '/ox/3.0/a'
 
 class OX3APIClient(object):
     
     def __init__(self, domain, realm, consumer_key, consumer_secret,
                     callback_url='oob',
-                    request_token=REQUEST_TOKEN_URL,
+                    request_token_url=REQUEST_TOKEN_URL,
                     access_token_url=ACCESS_TOKEN_URL,
-                    authorization_url=AUTHORIZATION_TOKEN_URL,
+                    authorization_url=AUTHORIZATION_URL,
                     api_path=API_PATH):
         """
         
@@ -32,6 +32,7 @@ class OX3APIClient(object):
         self.domain = domain
         self.realm = realm
         self.consumer_key = consumer_key
+        self.consumer_secret = consumer_secret
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
@@ -42,4 +43,5 @@ class OX3APIClient(object):
         # directly so we'll keep them "private".
         self._consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
         self._token = oauth.Token('', '')
+    
 
