@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import oauth2 as oauth
+import urllib
 import urllib2
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
