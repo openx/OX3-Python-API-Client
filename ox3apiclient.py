@@ -142,3 +142,32 @@ class OX3APIClient(object):
         self._token = oauth.Token.from_string(res.read())
         return self._token
     
+    def validate_session(self):
+        """Validate an API session."""
+        
+        # We need to store our access token as the openx3_access_token cookie.
+        # This cookie will be passed to all future API requests.
+        cookie = cookielib.Cookie(
+            version=0,
+            name='openx3_access_token',
+            value=self._token.key,
+            port=None,
+            port_specified=False,
+            domain=self.domain,
+            domain_specified=True,
+            domain_initial_dot=False,
+            path='/',
+            path_specified=True,
+            secure=False,
+            expires=None,
+            discard=False,
+            comment=None,
+            comment_url=None,
+            rest={})
+        
+        self._cookie_jar.set_cookie(cookie)
+        
+        url = 'http://'+self.domain+API_PATH+'/session/validate'
+        res = self.request(url=url, method='PUT')
+        return res.read()
+    
