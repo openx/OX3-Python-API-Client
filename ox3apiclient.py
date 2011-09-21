@@ -133,3 +133,12 @@ class OX3APIClient(object):
         verifier = urlparse.parse_qs(res.read())['oauth_verifier'][0]
         self._token.set_verifier(verifier)
     
+    def fetch_access_token(self):
+        """Helper method to fetch and set access token.
+        
+        Returns oauth2.Token object.
+        """
+        res = self.request(url=self.access_token_url, method='POST', sign=True)
+        self._token = oauth.Token.from_string(res.read())
+        return self._token
+    
