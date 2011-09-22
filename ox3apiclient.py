@@ -67,10 +67,9 @@ class OX3APIClient(object):
         data = req.data
         
         # Add any (POST) data to the parameters to be signed in the OAuth
-        # request as well as store 'stringified' copy for the request's body.
+        # request.
         if data:
             parameters.update(data)
-            data = urllib.urlencode(data)
         
         # Create a temporary oauth2 Request object and sign it so we can steal
         # the Authorization header.
@@ -111,6 +110,10 @@ class OX3APIClient(object):
         
         if sign:
             req = self._sign_request(req)
+        
+        # Stringify data.
+        if data:
+            req.add_data(urllib.urlencode(req.get_data()))
         
         return urllib2.urlopen(req)
     
