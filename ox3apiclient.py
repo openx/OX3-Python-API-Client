@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import cookielib
+import json
 import oauth2 as oauth
 import urllib
 import urllib2
@@ -170,4 +171,27 @@ class OX3APIClient(object):
         url = 'http://'+self.domain+API_PATH+'/session/validate'
         res = self.request(url=url, method='PUT')
         return res.read()
+    
+    def _resolve_url(self, url):
+        """"""
+        parse_res = urlparse.urlparse(url)
+        if not parse_res.scheme:
+            url ='http://%s%s%s' % (self.domain, API_PATH, parse_res.path)
+        
+        return url
+    
+    def get(self, url, data=None):
+        """"""
+        res = self.request(self._resolve_url(url), method='GET', data=data)
+        return json.loads(res.read())
+    
+    def post(self, url, data=None):
+        """"""
+        res = self.request(self._resolve_url(url), method='POST', data=data)
+        return json.loads(res.read())
+    
+    def delete(self, url):
+        """"""
+        res = self.request(self._resolve_url(url), method='DELETE')
+        return json.loads(res.read())
     
