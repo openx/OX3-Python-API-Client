@@ -189,6 +189,7 @@ class OX3APIClient(object):
         if not parse_res.scheme:
             url ='%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
                                     parse_res.path)
+            url = url + '?' + parse_res.query if parse_res.query else url
         
         return url
     
