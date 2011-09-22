@@ -10,7 +10,7 @@ import urlparse
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
 AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
-API_PATH = '/ox/3.0/a'
+API_PATH = '/ox/3.0'
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
 
 class OX3APIClient(object):
@@ -168,7 +168,7 @@ class OX3APIClient(object):
         
         self._cookie_jar.set_cookie(cookie)
         
-        url = 'http://'+self.domain+API_PATH+'/session/validate'
+        url = 'http://'+self.domain+API_PATH+'/a/session/validate'
         res = self.request(url=url, method='PUT')
         return res.read()
     
