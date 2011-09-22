@@ -17,6 +17,7 @@ class OX3APIClient(object):
     
     def __init__(self, domain, realm, consumer_key, consumer_secret,
                     callback_url='oob',
+                    scheme='http',
                     request_token_url=REQUEST_TOKEN_URL,
                     access_token_url=ACCESS_TOKEN_URL,
                     authorization_url=AUTHORIZATION_URL,
@@ -39,10 +40,11 @@ class OX3APIClient(object):
         self.realm = realm
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
+        self.callback_url = callback_url
+        self.scheme=scheme
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
-        self.callback_url = callback_url
         self.api_path = api_path
         
         # You shouldn't need to access the oauth2 consumer and token objects
@@ -53,7 +55,9 @@ class OX3APIClient(object):
         # Similarly you probably won't need to access the cookie jar directly,
         # so it is private as well.
         self._cookie_jar = cookielib.LWPCookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        opener = \
+            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        
         urllib2.install_opener(opener)
     
     def _sign_request(self, req):
@@ -86,7 +90,8 @@ class OX3APIClient(object):
         # Update or original requests headers to include the OAuth Authorization
         # header and return it.
         req.headers.update(oauth_req.to_header(realm=self.realm))
-        return urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
+        return \
+            urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
     
     def request(self, url, method='GET', headers={}, data=None, sign=False):
         """Helper method to make a (optionally OAuth signed) HTTP request."""
@@ -168,7 +173,10 @@ class OX3APIClient(object):
         
         self._cookie_jar.set_cookie(cookie)
         
-        url = 'http://'+self.domain+self.api_path+'/a/session/validate'
+        url = '%s://%s%s/a/session/validate' % (self.scheme, 
+                                                self.domain,
+                                                self.api_path)
+        
         res = self.request(url=url, method='PUT')
         return res.read()
     
@@ -176,7 +184,8 @@ class OX3APIClient(object):
         """"""
         parse_res = urlparse.urlparse(url)
         if not parse_res.scheme:
-            url ='http://%s%s%s' % (self.domain, self.api_path, parse_res.path)
+            url ='%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
+                                    parse_res.path)
         
         return url
     
