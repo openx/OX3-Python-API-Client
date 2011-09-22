@@ -168,7 +168,7 @@ class OX3APIClient(object):
         
         self._cookie_jar.set_cookie(cookie)
         
-        url = 'http://'+self.domain+API_PATH+'/a/session/validate'
+        url = 'http://'+self.domain+self.api_path+'/a/session/validate'
         res = self.request(url=url, method='PUT')
         return res.read()
     
@@ -176,7 +176,7 @@ class OX3APIClient(object):
         """"""
         parse_res = urlparse.urlparse(url)
         if not parse_res.scheme:
-            url ='http://%s%s%s' % (self.domain, API_PATH, parse_res.path)
+            url ='http://%s%s%s' % (self.domain, self.api_path, parse_res.path)
         
         return url
     
