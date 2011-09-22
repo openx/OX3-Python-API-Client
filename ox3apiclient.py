@@ -192,9 +192,9 @@ class OX3APIClient(object):
         
         return url
     
-    def get(self, url, data=None):
+    def get(self, url):
         """"""
-        res = self.request(self._resolve_url(url), method='GET', data=data)
+        res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
     
     def post(self, url, data=None):
