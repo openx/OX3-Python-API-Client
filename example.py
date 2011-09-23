@@ -29,18 +29,11 @@ ox.fetch_access_token()
 #
 #   token_str = ox.fetch_access_token()
 #   access_token = urlparse.parse_qs(token_str)['oauth_token'][0]
-#
-#
-# Alternatively, after calling fetch_access_token you can grab it off the
-# "private" _token property like:
-#
-#   access_token = ox._token.key
-#
 # 
 ox.validate_session()
 
 # Or manually validate your access token (but you will be resonpsible for
-# passing the requisite openx3_access_token for all successive API requests.
+# passing the requisite openx3_access_token for all successive API requests).
 #   token_str = ox.fetch_access_token()
 #   access_token = urlparse.parse_qs(token_str)['oauth_token'][0]
 #   cookie_header = {'Cookie': 'openx3_access_token=' + access_token}

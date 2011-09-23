@@ -86,7 +86,7 @@ class OX3APIClient(object):
             self._consumer,
             self._token)
         
-        # Update or original requests headers to include the OAuth Authorization
+        # Update our original requests headers to include the OAuth Authorization
         # header and return it.
         req.headers.update(oauth_req.to_header(realm=self.realm))
         return \
@@ -120,7 +120,7 @@ class OX3APIClient(object):
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
         
-        Returns oauth2.Token object.
+        Returns token string.
         """
         res = self.request(url=self.request_token_url, method='POST', sign=True)
         self._token = oauth.Token.from_string(res.read())
@@ -145,7 +145,7 @@ class OX3APIClient(object):
     def fetch_access_token(self):
         """Helper method to fetch and set access token.
         
-        Returns oauth2.Token object.
+        Returns token string.
         """
         res = self.request(url=self.access_token_url, method='POST', sign=True)
         self._token = oauth.Token.from_string(res.read())
