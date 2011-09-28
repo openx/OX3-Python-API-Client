@@ -54,11 +54,11 @@ class OX3APIClient(object):
         
         # Similarly you probably won't need to access the cookie jar directly,
         # so it is private as well.
-        #self._cookie_jar = cookielib.LWPCookieJar()
-        #opener = \
-        #    urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
-        # 
-        #urllib2.install_opener(opener)
+        self._cookie_jar = cookielib.LWPCookieJar()
+        opener = \
+            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+         
+        urllib2.install_opener(opener)
     
     def _sign_request(self, req):
         """Utility method to sign a request."""
