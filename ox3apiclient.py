@@ -50,7 +50,7 @@ class OX3APIClient(object):
         # You shouldn't need to access the oauth2 consumer and token objects
         # directly so we'll keep them "private".
         self._consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
-        self._token = oauth.Token('', '')
+        self._token = None
         
         # Similarly you probably won't need to access the cookie jar directly,
         # so it is private as well.
