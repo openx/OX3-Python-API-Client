@@ -3,6 +3,7 @@ envs=
     prod
     dev
     missing-required-option
+    optional-options
 
 [prod]
 email: email
@@ -26,3 +27,17 @@ password: password
 domain: domain
 realm: realm
 consumer_key: consumer_key
+
+[optional-options]
+email: email
+password: password
+domain: domain
+realm: realm
+consumer_key: consumer_key
+consumer_secret: consumer_secret
+scheme: scheme
+request_token_url: request_token_url
+access_token_url: access_token_url
+authorization_url: authorization_url
+api_path: api_path
+callback_url = callback_url

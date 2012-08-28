@@ -279,18 +279,40 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     # Load required parameters.
     try:
-        for key in required_params:
-            client_params[key] = cp.get(env, key)
+        for param in required_params:
+            client_params[param] = cp.get(env, param)
     except ConfigParser.NoOptionError:
-        err_msg = "Missing required option: '%s'" % key
+        err_msg = "Missing required option: '%s'" % param
         raise Exception(err_msg)
-
-    # TODO: Add support for optional parameters.
 
     client = Client(
         domain=client_params['domain'],
         realm=client_params['realm'],
         consumer_key=client_params['consumer_key'],
         consumer_secret=client_params['consumer_secret'])
+
+    # Load optional parameters.
+    optional_params = [
+        'callback_url',
+        'scheme',
+        'request_token_url',
+        'access_token_url',
+        'authorization_url',
+        'api_path',
+        'email',
+        'password']
+
+    for param in optional_params:
+        try:
+            prop = param
+
+            # Prefix private properties with '_'.
+            if prop in ['email', 'password']:
+                prop = '_%s' % prop
+
+            client.__dict__[prop] = cp.get(env, param)
+
+        except ConfigParser.NoOptionError:
+            pass
 
     return client
