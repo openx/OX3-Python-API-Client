@@ -316,3 +316,7 @@ def client_from_file(file_path='.ox3rc', env=None):
             pass
 
     return client
+
+# The exposed API has moved to using Client instead of OX3APIClient, but create
+# a temporary alias for backwards compatibility.
+OX3APIClient = Client
