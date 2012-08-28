@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import ConfigParser
 import cookielib
 import json
 import oauth2 as oauth
@@ -209,3 +210,37 @@ class Client(object):
         """"""
         res = self.request(self._resolve_url(url), method='DELETE')
         return json.loads(res.read())
+
+
+def client_from_file(file_path='.ox3rc', env=None):
+    """"""
+    cp = ConfigParser.RawConfigParser()
+    cp.read(file_path)
+
+    # Load default env if no env is specified. The default env is just the first
+    # env listed.
+    env_ids = [e for e in cp.get('ox3apiclient', 'envs').split('\n') if e]
+    env = env if env else env_ids[0]
+
+    # Required parameters for a ox3apiclient.Client instance.
+    required_params = [
+        'domain',
+        'realm',
+        'consumer_key',
+        'consumer_secret']
+
+    client_params = {}
+
+    # TODO: Catch NoOptionErrors.
+    for key in required_params:
+        client_params[key] = cp.get(env, key)
+
+    # TODO: Add support for optional parameters.
+
+    client = Client(
+        domain=client_params['domain'],
+        realm=client_params['realm'],
+        consumer_key=client_params['consumer_key'],
+        consumer_secret=client_params['consumer_secret'])
+
+    return client
