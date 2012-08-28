@@ -24,7 +24,9 @@ class Client(object):
                     request_token_url=REQUEST_TOKEN_URL,
                     access_token_url=ACCESS_TOKEN_URL,
                     authorization_url=AUTHORIZATION_URL,
-                    api_path=API_PATH):
+                    api_path=API_PATH,
+                    email=None,
+                    password=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -49,6 +51,10 @@ class Client(object):
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
+
+        # These get cleared after log on attempt.
+        self._email = email
+        self._password = password
 
         # You shouldn't need to access the oauth2 consumer and token objects
         # directly so we'll keep them "private".
@@ -129,8 +135,18 @@ class Client(object):
         self._token = oauth.Token.from_string(res.read())
         return self._token
 
-    def authorize_token(self, email, password):
+    def authorize_token(self, email=None, password=None):
         """Helper method to authorize."""
+        # Give precedence to credentials passed in methods calls over those set
+        # in the instance. This allows you to override user creds that may have
+        # been loaded from a file.
+        email = email if email else self._email
+        password = password if password else self._password
+
+        if not email or not password:
+            self._email = self._password = None
+            raise Exception('Missing email or password')
+
         data = {
             'email': email,
             'password': password,
@@ -141,6 +157,9 @@ class Client(object):
                 method='POST',
                 data=data,
                 sign=True)
+
+        # Clear user credentials.
+        self._email = self._password = None
 
         verifier = urlparse.parse_qs(res.read())['oauth_verifier'][0]
         self._token.set_verifier(verifier)
@@ -185,6 +204,27 @@ class Client(object):
 
         res = self.request(url=url, method='PUT')
         return res.read()
+
+    def logon(self, email=None, password=None):
+        """Returns self after authentication.
+
+        Single call to complete OAuth login process.
+
+        Keyword arguments:
+        email -- user email address.
+        password -- user password.
+
+        """
+        self.fetch_request_token()
+        self.authorize_token(email=email, password=password)
+        self.fetch_access_token()
+        self.validate_session()
+        return self
+
+    def logoff(self):
+        """Returns self after deleting authenticated session."""
+        self.delete('/a/session')
+        return self
 
     def _resolve_url(self, url):
         """"""
