@@ -237,9 +237,13 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     client_params = {}
 
-    # TODO: Catch NoOptionErrors.
-    for key in required_params:
-        client_params[key] = cp.get(env, key)
+    # Load required parameters.
+    try:
+        for key in required_params:
+            client_params[key] = cp.get(env, key)
+    except ConfigParser.NoOptionError:
+        err_msg = "Missing required option: '%s'" % key
+        raise Exception(err_msg)
 
     # TODO: Add support for optional parameters.
 

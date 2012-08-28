@@ -51,3 +51,11 @@ class ClientFromFileTestCase(unittest.TestCase):
         test_values.sort()
         loaded_values.sort()
         self.assertEqual(loaded_values, test_values)
+
+    def test_missing_required_option_raises_error(self):
+        file_path = os.path.join(os.path.dirname(__file__), 'ox3rctest')
+        self.assertRaises(
+            Exception,
+            ox3apiclient.client_from_file,
+            file_path,
+            'missing-required-option')
