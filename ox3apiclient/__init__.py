@@ -213,7 +213,13 @@ class Client(object):
 
 
 def client_from_file(file_path='.ox3rc', env=None):
-    """"""
+    """Return an instance of ox3apiclient.Client with data from file_path.
+
+    Keyword arguments:
+    file_path -- the file to load. Default is '.ox3rc' form current dir.
+    env -- the env section to load. Default will be first env section.
+
+    """
     cp = ConfigParser.RawConfigParser()
     cp.read(file_path)
 
