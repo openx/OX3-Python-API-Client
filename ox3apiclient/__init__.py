@@ -249,6 +249,9 @@ class Client(object):
     def delete(self, url):
         """"""
         res = self.request(self._resolve_url(url), method='DELETE')
+        # Catch no content responses from some delete actions.
+        if res.code == 204:
+            return json.loads('[]')
         return json.loads(res.read())
 
 
