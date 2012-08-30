@@ -140,7 +140,23 @@ class Client(object):
         if data:
             req.add_data(urllib.urlencode(req.get_data()))
 
-        return urllib2.urlopen(req)
+        # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
+        # The OpenX API uses 201 create responses and 204 for delete respones.
+        # We'll catch those errors and return the HTTPError object since it can
+        # (thankfully) be used just like a Response object. A handler is
+        # probably a better approach, but this is quick and works.
+        res = '[]'
+        try:
+            res = urllib2.urlopen(req)
+        except urllib2.HTTPError, err:
+            if err.code in [201, 204]:
+                res = err
+            else:
+                # TODO: Decide on format and what extra data to alert user for
+                # troubleshooting.
+                raise err
+
+        return res
 
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
