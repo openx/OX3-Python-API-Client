@@ -2,10 +2,26 @@
 
 import ConfigParser
 import cookielib
-import json
+
+# json module is not supported in versions of Python < 2.6 so try to load the
+# simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
+# support was dropped. You will need to look for v2.1.0 specifically for
+# Python 2.4 support.
+try:
+    import json
+except ImportError:
+    import simplejson as json
+
 import oauth2 as oauth
 import urllib
 import urllib2
+
+# parse_qs is in the urlparse module as of 2.6, but in cgi in earlier versions.
+try:
+    from urlparse import parse_qs
+except ImportError:
+    from cgi import parse_qs
+
 import urlparse
 
 __version__ = '0.1.0'
@@ -107,8 +123,8 @@ class Client(object):
         # Since we are using a urllib2.Request object we need to assign a value
         # other than None to "data" in order to make the request a POST request,
         # even if there is no data to post.
-        if method == 'POST':
-            data = data if data else ''
+        if method == 'POST' and not data:
+            data = ''
 
         req = urllib2.Request(url, headers=headers, data=data)
 
@@ -124,7 +140,23 @@ class Client(object):
         if data:
             req.add_data(urllib.urlencode(req.get_data()))
 
-        return urllib2.urlopen(req)
+        # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
+        # The OpenX API uses 201 create responses and 204 for delete respones.
+        # We'll catch those errors and return the HTTPError object since it can
+        # (thankfully) be used just like a Response object. A handler is
+        # probably a better approach, but this is quick and works.
+        res = '[]'
+        try:
+            res = urllib2.urlopen(req)
+        except urllib2.HTTPError, err:
+            if err.code in [201, 204]:
+                res = err
+            else:
+                # TODO: Decide on format and what extra data to alert user for
+                # troubleshooting.
+                raise err
+
+        return res
 
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
@@ -140,8 +172,11 @@ class Client(object):
         # Give precedence to credentials passed in methods calls over those set
         # in the instance. This allows you to override user creds that may have
         # been loaded from a file.
-        email = email if email else self._email
-        password = password if password else self._password
+        if not email:
+            email = self._email
+
+        if not password:
+            password = self._password
 
         if not email or not password:
             self._email = self._password = None
@@ -161,7 +196,7 @@ class Client(object):
         # Clear user credentials.
         self._email = self._password = None
 
-        verifier = urlparse.parse_qs(res.read())['oauth_verifier'][0]
+        verifier = parse_qs(res.read())['oauth_verifier'][0]
         self._token.set_verifier(verifier)
 
     def fetch_access_token(self):
@@ -229,10 +264,17 @@ class Client(object):
     def _resolve_url(self, url):
         """"""
         parse_res = urlparse.urlparse(url)
-        if not parse_res.scheme:
+
+        # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
+        # subclass or tuple we can access URL components similarly across
+        # 2.4 - 2.7. Yay!
+
+        # If there is no scheme specified we create a fully qualified URL.
+        if not parse_res[0]:
             url ='%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
-                                    parse_res.path)
-            url = url + '?' + parse_res.query if parse_res.query else url
+                                    parse_res[2])
+            if parse_res[4]:
+                url = url + '?' + parse_res[4]
 
         return url
 
@@ -268,8 +310,8 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     # Load default env if no env is specified. The default env is just the first
     # env listed.
-    env_ids = [e for e in cp.get('ox3apiclient', 'envs').split('\n') if e]
-    env = env if env else env_ids[0]
+    if not env:
+        env = [e for e in cp.get('ox3apiclient', 'envs').split('\n') if e][0]
 
     # Required parameters for a ox3apiclient.Client instance.
     required_params = [
