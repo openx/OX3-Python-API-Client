@@ -24,7 +24,7 @@ except ImportError:
 
 import urlparse
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
