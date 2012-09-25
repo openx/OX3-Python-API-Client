@@ -1,3 +1,7 @@
+0.2.0 / 2012-09-25
+==================
+  # Added: `upload_creative` to support uploading creative files.
+
 0.2.0 / 2012-08-29
 ==================
 
