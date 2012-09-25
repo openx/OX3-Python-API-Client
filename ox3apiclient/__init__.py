@@ -2,6 +2,8 @@
 
 import ConfigParser
 import cookielib
+import mimetypes
+import random
 
 # json module is not supported in versions of Python < 2.6 so try to load the
 # simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
@@ -296,6 +298,40 @@ class Client(object):
             return json.loads('[]')
         return json.loads(res.read())
 
+    def upload_creative(self, account_id, file_path):
+        """"""
+        # Thanks to nosklo for his answer on SO:
+        # http://stackoverflow.com/a/681182
+        boundary = '-----------------------------' + str(int(random.random()*1e10))
+        parts = []
+
+        # Set account ID part.
+        parts.append('--' + boundary)
+        parts.append('Content-Disposition: form-data; name="account_id"')
+        parts.append('')
+        parts.append(str(account_id))
+
+        # Set creative contents part.
+        parts.append('--' + boundary)
+        parts.append('Content-Disposition: form-data; name="userfile"; filename="%s"' % file_path)
+        parts.append('Content-Type: %s' % mimetypes.guess_type(file_path)[0] or 'application/octet-stream')
+        parts.append('')
+        # TODO: catch errors with opening file.
+        parts.append(open(file_path, 'r').read())
+
+        parts.append('--' + boundary + '--')
+        parts.append('')
+
+        body = '\r\n'.join(parts)
+
+        # TODO: refactor Client.request.
+        # TODO: Catch errors in attempt to upload.
+        headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
+        url = self._resolve_url('/a/creative/uploadcreative')
+        req = urllib2.Request(url, headers=headers, data=body)
+        res = urllib2.urlopen(req)
+
+        return json.loads(res.read())
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.
