@@ -9,11 +9,13 @@ import random
 # simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
 # support was dropped. You will need to look for v2.1.0 specifically for
 # Python 2.4 support.
-try:
-    import json
-except ImportError:
+import sys
+major_py_version = sys.version_info[0]
+minor_py_version = sys.version_info[1]
+if major_py_version == 2 and minor_py_version < 6:
     import simplejson as json
-
+else:
+    import json
 
 import oauth2_version as oauth
 
@@ -21,9 +23,6 @@ import urllib
 import urllib2
 
 # parse_qs is in the urlparse module as of 2.6, but in cgi in earlier versions.
-import sys
-major_py_version = sys.version_info[0]
-minor_py_version = sys.version_info[1]
 if major_py_version == 2 and minor_py_version > 5:
     from urlparse import parse_qs
 else:
