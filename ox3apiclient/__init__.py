@@ -49,7 +49,8 @@ class Client(object):
                     api_path=API_PATH,
                     email=None,
                     password=None,
-                    http_proxy=None):
+                    http_proxy=None,
+                    https_proxy=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -93,8 +94,11 @@ class Client(object):
             urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
         # Add an HTTP proxy if necessary:
         if http_proxy:
-            proxy = urllib2.ProxyHandler({'http': http_proxy})
-            opener.add_handler(proxy)
+            http_proxy_handler = urllib2.ProxyHandler({'http': http_proxy})
+            opener.add_handler(http_proxy_handler)
+        if https_proxy:
+            https_proxy_handler = urllib2.ProxyHandler({'https': https_proxy})
+            opener.add_handler(https_proxy_handler)
 
         urllib2.install_opener(opener)
 
