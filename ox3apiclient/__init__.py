@@ -48,7 +48,8 @@ class Client(object):
                     authorization_url=AUTHORIZATION_URL,
                     api_path=API_PATH,
                     email=None,
-                    password=None):
+                    password=None,
+                    http_proxy=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -62,7 +63,9 @@ class Client(object):
         access_token -- Only override for debugging.
         authorization_url -- Only override for debugging.
         api_path -- Only override for debugging.
+        http_proxy -- Optional proxy to send HTTP requests through.
         """
+        
         self.domain = domain
         self.realm = realm
         self.consumer_key = consumer_key
@@ -88,6 +91,10 @@ class Client(object):
         self._cookie_jar = cookielib.LWPCookieJar()
         opener = \
             urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        # Add an HTTP proxy if necessary:
+        if http_proxy:
+            proxy = urllib2.ProxyHandler({'http': http_proxy})
+            opener.add_handler(proxy)
 
         urllib2.install_opener(opener)
 
