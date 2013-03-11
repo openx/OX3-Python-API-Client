@@ -17,7 +17,8 @@ if major_py_version == 2 and minor_py_version < 6:
 else:
     import json
 
-import oauth2_version as oauth
+#import oauth2_version as oauth
+import oauth2 as oauth
 
 import urllib
 import urllib2
@@ -40,7 +41,7 @@ HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
 
 class Client(object):
 
-    def __init__(self, domain, realm, consumer_key, consumer_secret,
+    def __init__(self, domain, consumer_key, consumer_secret,
                     callback_url='oob',
                     scheme='http',
                     request_token_url=REQUEST_TOKEN_URL,
@@ -54,8 +55,6 @@ class Client(object):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
-        realm -- Your sso realm. While not necessary for all OAuth
-            implementations, it is a requirement for OpenX Enterprise
         consumer_key -- Your consumer key.
         consumer_secret -- Your consumer secret.
         callback_url -- Callback URL to redirect to on successful authorization.
@@ -68,7 +67,6 @@ class Client(object):
         """
         
         self.domain = domain
-        self.realm = realm
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         self.callback_url = callback_url
@@ -130,7 +128,6 @@ class Client(object):
 
         # Update our original requests headers to include the OAuth Authorization
         # header and return it.
-        req.headers.update(oauth_req.to_header(realm=self.realm))
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
 
@@ -367,7 +364,6 @@ def client_from_file(file_path='.ox3rc', env=None):
     # Required parameters for a ox3apiclient.Client instance.
     required_params = [
         'domain',
-        'realm',
         'consumer_key',
         'consumer_secret']
 
@@ -383,7 +379,6 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     client = Client(
         domain=client_params['domain'],
-        realm=client_params['realm'],
         consumer_key=client_params['consumer_key'],
         consumer_secret=client_params['consumer_secret'])
 
