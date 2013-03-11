@@ -17,8 +17,10 @@ if major_py_version == 2 and minor_py_version < 6:
 else:
     import json
 
-#import oauth2_version as oauth
-import oauth2 as oauth
+if major_py_version == 2 and minor_py_version > 4:
+    import oauth2 as oauth
+else:
+    import oauth2_version as oauth 
 
 import urllib
 import urllib2
