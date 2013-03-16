@@ -95,13 +95,15 @@ class Client(object):
         self._cookie_jar = cookielib.LWPCookieJar()
         opener = \
             urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
-        # Add an HTTP proxy if necessary:
+        # Add an HTTP[S] proxy if necessary:
+        proxies = {}
         if http_proxy:
-            http_proxy_handler = urllib2.ProxyHandler({'http': http_proxy})
-            opener.add_handler(http_proxy_handler)
+            proxies['http'] = http_proxy
         if https_proxy:
-            https_proxy_handler = urllib2.ProxyHandler({'https': https_proxy})
-            opener.add_handler(https_proxy_handler)
+            proxies['https'] = https_proxy
+        if proxies:
+            proxy_handler = urllib2.ProxyHandler(proxies)
+            opener.add_handler(proxy_handler)
 
         urllib2.install_opener(opener)
 
