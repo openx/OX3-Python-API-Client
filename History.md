@@ -1,4 +1,12 @@
-0.2.0 / 2012-09-25
+0.3.0 / 2013-03-18
+==================
+ * Added: HTTP and HTTPS proxy support.
+ * Fixed: JSON support for Python 2.4 and 2.5
+ * Fixed: OAuth support for Python 2.4
+ * Fixed: Version number below (0.2.1)
+ 
+
+0.2.1 / 2012-09-25
 ==================
   # Added: `upload_creative` to support uploading creative files.
 
