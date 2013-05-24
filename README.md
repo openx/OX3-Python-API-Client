@@ -1,88 +1,105 @@
-#OX3-Python-API-Client - Python class to access OpenX Enterprise API
-OX3-Python-API-Client is a small class to help demonstrate how to connect to the OpenX Enterprise API. It depends on the [simplegeo/python-oauth2](https://github.com/simplegeo/python-oauth2) module.
+# ox3apiclient
 
-It currently supports Python 2.7 and will be updated to support Python 3.x.
+A small class to help connect to the OpenX Enterprise API. While it uses [oauth2](https://github.com/simplegeo/python-oauth2),
+it does not use [httplib2](http://code.google.com/p/httplib2/) as the transport due to issues with headers created by
+httplib2. Instead it uses urllib2 as the HTTP transport.
+
+It currently supports Python 2.4 - 2.7, with 3.x support comming in the future.
+
+Basic usage:
 
 ````python
-import datetime
 import ox3apiclient
 
-# User credentials
-email_address = ''
-password = ''
+ox = ox3apiclient.client_from_file().logon()
 
-# OAuth credentials. These will be supplied by your Account Manager or Support.
-domain = ''
-realm = ''
-consumer_key = ''
-consumer_secret = ''
+account_ids = ox.get('/a/account')
 
+order = {
+    'status': 'Active',
+    'name': 'OX3APIClient Object Creation Test',
+    'account_id': account_ids[0],
+    'start_date': '2012-08-22 00:00:00'}
 
-ox = ox3apiclient.OX3APIClient(domain, realm, consumer_key, consumer_secret)
+new_order = ox.post('/a/order', data=order)
 
-# Step 1. Fetch temporary request token.
-ox.fetch_request_token()
+ox.delete('/a/order/%s' % new_order['id'])
 
-# Step 2. Log in to SSO server and authorize token.
-ox.authorize_token(email_address, password)
-
-# Step 3. Swap temporary request token for permanent access token.
-# If you need to store the access token yourself you can do so with something
-# similar to:
-#   token_str = ox.fetch_access_token()
-#   access_token = urlparse.parse_qs(token_str)['oauth_token'][0]
-ox.fetch_access_token()
-
-# Step 4. Validate your access token.
-# You'll more than likely want to call the validate_session method, but you can
-# manually validate your access token if needed. You will be resonpsible for
-# passing the requisite openx3_access_token for all successive API requests. A
-# method might look like the following:
-#   token_str = ox.fetch_access_token()
-#   access_token = urlparse.parse_qs(token_str)['oauth_token'][0]
-#   cookie_header = {'Cookie': 'openx3_access_token=' + access_token}
-#   ox.request(url='http://youruidomain.com/ox/3.0/a/session/validate',
-#       method='PUT',
-#       headers=cookie_header)
-ox.validate_session()
+ox.logoff()
+````
 
 
-# Now that we have connected let's try making a few API requests.
-# Print out account names. We use overload=medium to get more than just a
-# listing of ids.
-accounts = ox.get('/a/account?overload=medium')
-for account in accounts:
-    msg = 'Account ID: %s, Account Name: %s'
-    print(msg % (account['id'], account['name']))
+## Installation
 
-# We won't test object creation with accounts because they can't be deleted
-# currently. Instead, we will create an order under an advertiser account.
-account_id = 0 #<= Replace with a valid advertiser account id for your instance.
+Install from [PyPi](http://pypi.python.org/pypi) with [pip](http://www.pip-installer.org/en/latest/index.html)
 
-if account_id:
+````
+$ pip install ox3apiclient
+````
+This should install the [oauth2](https://github.com/simplegeo/python-oauth2) dependency, but you can manually install if needed.
+````
+$ pip install oauth2
+````
 
-    # You can check to see what fields are required for the create action.
-    # required_fields = ox.get('/a/order/requiredFields?action=create')
-    # print(required_fields) #=> {u'status': u'string', u'name': u'string', u'account_id': u'int', u'start_date': u'datetime'}
+Note that Python 2.4 and 2.5 support requires simplejson. You will need
+simplejson 2.1.0 specifically for Python 2.4. You can install this version with:
+````
+$ pip install simplejson==2.1.0
+````
 
-    # OX3APIClient methods accept Python dicts for data parameters, so we can
-    # define an order as a normal dict.
-    order = {
-        'status': 'Active',
-        'name': 'OX3APIClient Object Creation Test',
-        'account_id': account_id,
-        'start_date': datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-    }
 
-    new_order = ox.post('/a/order', data=order)
-    # print(order) #=> {u'id': 12345}
-    print('Created order id %s' % new_order['id'])
+## Authentication
 
-    # Let's get all the details on the order we just created.
-    existing_order = ox.get('/a/order/%s' % new_order['id'])
-    print(existing_order)
+The recommended method of authentication is to use `ox3apiclient.client_from_file`.
+By default this will look for a file named `.ox3rc` in the current current
+directory, but this can be overwritten by specifying a `file_path` parameter. The
+file should be in the following format:
 
-# Log out.
-ox.delete('/a/session')
+````
+[ox3apiclient]
+envs=
+    dev
+    prod
+
+[dev]
+email: you@example.com
+password: password123
+domain: dev.uidomain.com
+realm: dev.uidomain_realm
+consumer_key: 1fc5c9ae...
+consumer_secret: 7c664d68...
+authorization_url: http://custom_sso.uidomain.com/api/index/initiate
+
+[prod]
+email: you@example.com
+password: password123
+domain: uidomain.com
+realm: uidomain_realm
+consumer_key: 1fc5c9ae...
+consumer_secret: 7c664d68...
+````
+
+`ox3apiclient.client_from_file` will use the first `env` by default but this can
+be overwritten by setting the `env` parameter. If your email and password are set
+in `.ox3rc` you can simply chain a call to `logon()`.
+
+Alternatively you can set everything in your code.
+````python
+email = 'you@example.com'
+password = 'password123'
+domain = 'uidomain.com'
+realm = 'uidomain_realm'
+consumer_key = '1fc5c9ae...'
+consumer_secret = '7c664d68...'
+
+ox = ox3apiclient.Client(
+    email=email,
+    password=password,
+    domain=domain,
+    realm=realm,
+    consumer_key=consumer_key,
+    consumer_secret=consumer_secret)
+
+ox.logon(email, password)
 ````
 Test

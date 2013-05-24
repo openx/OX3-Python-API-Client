@@ -2,13 +2,38 @@
 
 import ConfigParser
 import cookielib
-import json
-import oauth2 as oauth
+import mimetypes
+import random
+
+# json module is not supported in versions of Python < 2.6 so try to load the
+# simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
+# support was dropped. You will need to look for v2.1.0 specifically for
+# Python 2.4 support.
+import sys
+major_py_version = sys.version_info[0]
+minor_py_version = sys.version_info[1]
+if major_py_version == 2 and minor_py_version < 6:
+    import simplejson as json
+else:
+    import json
+
+if major_py_version == 2 and minor_py_version > 4:
+    import oauth2 as oauth
+else:
+    import oauth2_version as oauth 
+
 import urllib
 import urllib2
+
+# parse_qs is in the urlparse module as of 2.6, but in cgi in earlier versions.
+if major_py_version == 2 and minor_py_version > 5:
+    from urlparse import parse_qs
+else:
+    from cgi import parse_qs
+
 import urlparse
 
-__version__ = '0.1.0'
+__version__ = '0.3.0'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
@@ -26,7 +51,9 @@ class Client(object):
                     authorization_url=AUTHORIZATION_URL,
                     api_path=API_PATH,
                     email=None,
-                    password=None):
+                    password=None,
+                    http_proxy=None,
+                    https_proxy=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -40,7 +67,9 @@ class Client(object):
         access_token -- Only override for debugging.
         authorization_url -- Only override for debugging.
         api_path -- Only override for debugging.
+        http_proxy -- Optional proxy to send HTTP requests through.
         """
+        
         self.domain = domain
         self.realm = realm
         self.consumer_key = consumer_key
@@ -66,6 +95,15 @@ class Client(object):
         self._cookie_jar = cookielib.LWPCookieJar()
         opener = \
             urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        # Add an HTTP[S] proxy if necessary:
+        proxies = {}
+        if http_proxy:
+            proxies['http'] = http_proxy
+        if https_proxy:
+            proxies['https'] = https_proxy
+        if proxies:
+            proxy_handler = urllib2.ProxyHandler(proxies)
+            opener.add_handler(proxy_handler)
 
         urllib2.install_opener(opener)
 
@@ -107,8 +145,8 @@ class Client(object):
         # Since we are using a urllib2.Request object we need to assign a value
         # other than None to "data" in order to make the request a POST request,
         # even if there is no data to post.
-        if method == 'POST':
-            data = data if data else ''
+        if method == 'POST' and not data:
+            data = ''
 
         req = urllib2.Request(url, headers=headers, data=data)
 
@@ -124,7 +162,23 @@ class Client(object):
         if data:
             req.add_data(urllib.urlencode(req.get_data()))
 
-        return urllib2.urlopen(req)
+        # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
+        # The OpenX API uses 201 create responses and 204 for delete respones.
+        # We'll catch those errors and return the HTTPError object since it can
+        # (thankfully) be used just like a Response object. A handler is
+        # probably a better approach, but this is quick and works.
+        res = '[]'
+        try:
+            res = urllib2.urlopen(req)
+        except urllib2.HTTPError, err:
+            if err.code in [201, 204]:
+                res = err
+            else:
+                # TODO: Decide on format and what extra data to alert user for
+                # troubleshooting.
+                raise err
+
+        return res
 
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
@@ -140,8 +194,11 @@ class Client(object):
         # Give precedence to credentials passed in methods calls over those set
         # in the instance. This allows you to override user creds that may have
         # been loaded from a file.
-        email = email if email else self._email
-        password = password if password else self._password
+        if not email:
+            email = self._email
+
+        if not password:
+            password = self._password
 
         if not email or not password:
             self._email = self._password = None
@@ -161,7 +218,7 @@ class Client(object):
         # Clear user credentials.
         self._email = self._password = None
 
-        verifier = urlparse.parse_qs(res.read())['oauth_verifier'][0]
+        verifier = parse_qs(res.read())['oauth_verifier'][0]
         self._token.set_verifier(verifier)
 
     def fetch_access_token(self):
@@ -229,10 +286,17 @@ class Client(object):
     def _resolve_url(self, url):
         """"""
         parse_res = urlparse.urlparse(url)
-        if not parse_res.scheme:
+
+        # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
+        # subclass or tuple we can access URL components similarly across
+        # 2.4 - 2.7. Yay!
+
+        # If there is no scheme specified we create a fully qualified URL.
+        if not parse_res[0]:
             url ='%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
-                                    parse_res.path)
-            url = url + '?' + parse_res.query if parse_res.query else url
+                                    parse_res[2])
+            if parse_res[4]:
+                url = url + '?' + parse_res[4]
 
         return url
 
@@ -249,8 +313,45 @@ class Client(object):
     def delete(self, url):
         """"""
         res = self.request(self._resolve_url(url), method='DELETE')
+        # Catch no content responses from some delete actions.
+        if res.code == 204:
+            return json.loads('[]')
         return json.loads(res.read())
 
+    def upload_creative(self, account_id, file_path):
+        """"""
+        # Thanks to nosklo for his answer on SO:
+        # http://stackoverflow.com/a/681182
+        boundary = '-----------------------------' + str(int(random.random()*1e10))
+        parts = []
+
+        # Set account ID part.
+        parts.append('--' + boundary)
+        parts.append('Content-Disposition: form-data; name="account_id"')
+        parts.append('')
+        parts.append(str(account_id))
+
+        # Set creative contents part.
+        parts.append('--' + boundary)
+        parts.append('Content-Disposition: form-data; name="userfile"; filename="%s"' % file_path)
+        parts.append('Content-Type: %s' % mimetypes.guess_type(file_path)[0] or 'application/octet-stream')
+        parts.append('')
+        # TODO: catch errors with opening file.
+        parts.append(open(file_path, 'r').read())
+
+        parts.append('--' + boundary + '--')
+        parts.append('')
+
+        body = '\r\n'.join(parts)
+
+        # TODO: refactor Client.request.
+        # TODO: Catch errors in attempt to upload.
+        headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
+        url = self._resolve_url('/a/creative/uploadcreative')
+        req = urllib2.Request(url, headers=headers, data=body)
+        res = urllib2.urlopen(req)
+
+        return json.loads(res.read())
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.
@@ -265,8 +366,8 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     # Load default env if no env is specified. The default env is just the first
     # env listed.
-    env_ids = [e for e in cp.get('ox3apiclient', 'envs').split('\n') if e]
-    env = env if env else env_ids[0]
+    if not env:
+        env = [e for e in cp.get('ox3apiclient', 'envs').split('\n') if e][0]
 
     # Required parameters for a ox3apiclient.Client instance.
     required_params = [
