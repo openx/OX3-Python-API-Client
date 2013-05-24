@@ -160,7 +160,11 @@ class Client(object):
 
         # Stringify data.
         if data:
-            req.add_data(urllib.urlencode(req.get_data()))
+            # Everything needs to be UTF-8 for urlencode:
+            data_utf8 = req.get_data()
+            for i in data_utf8:
+                data_utf8[i] = data_utf8[i].encode('utf-8') 
+            req.add_data(urllib.urlencode(data_utf8))
 
         # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
         # The OpenX API uses 201 create responses and 204 for delete respones.
