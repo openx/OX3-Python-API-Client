@@ -1,3 +1,9 @@
+0.3.1 / 2013-06-04
+==================
+ * Removed: Realm Support
+     * Realm can still be given, but has no effect
+ * Fixed: Unicode encoding error in REST POSTing
+
 0.3.0 / 2013-03-18
 ==================
  * Added: HTTP and HTTPS proxy support.
