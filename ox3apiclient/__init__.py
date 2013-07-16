@@ -38,7 +38,7 @@ __version__ = '0.3.1'
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
 AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
-API_PATH_V1 = '/ox/3.0/a'
+API_PATH_V1 = '/ox/3.0'
 API_PATH_V2 = '/ox/4.0'
 ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
@@ -269,9 +269,17 @@ class Client(object):
 
         self._cookie_jar.set_cookie(cookie)
 
-        url = '%s://%s%s/session/validate' % (self.scheme,
-                                              self.domain,
-                                              self.api_path)
+        if self.api_path == API_PATH_V1:
+            url_format = '%s://%s%s/a/session/validate'
+        elif self.api_path == API_PATH_V2:
+            url_format = '%s://%s%s/session/validate'
+        else:
+            raise UnknownAPIFormatError(
+                'Unrecognized API path: %s' % self.api_path)
+
+        url = url_format % (self.scheme,
+                            self.domain,
+                            self.api_path)
 
         res = self.request(url=url, method='PUT')
         return res.read()
@@ -294,7 +302,13 @@ class Client(object):
 
     def logoff(self):
         """Returns self after deleting authenticated session."""
-        self.delete('/session')
+        if self.api_path == API_PATH_V1:
+            self.delete('/a/session')
+        elif self.api_path == API_PATH_V2:
+            self.delete('/session')
+        else:
+            raise UnknownAPIFormatError(
+                'Unrecognized API path: %s' % self.api_path)
         return self
 
     def _resolve_url(self, url):
@@ -366,7 +380,13 @@ class Client(object):
         # TODO: refactor Client.request.
         # TODO: Catch errors in attempt to upload.
         headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
-        url = self._resolve_url('/creative/uploadcreative')
+        if self.api_path == API_PATH_V1:
+            url = self._resolve_url('/a/creative/uploadcreative')
+        elif self.api_path == API_PATH_V2:
+            url = self._resolve_url('/creative/uploadcreative')
+        else:
+            raise UnknownAPIFormatError(
+                'Unrecognized API path: %s' % self.api_path)
         req = urllib2.Request(url, headers=headers, data=body)
         res = urllib2.urlopen(req)
 
