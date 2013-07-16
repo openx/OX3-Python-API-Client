@@ -38,8 +38,14 @@ __version__ = '0.3.1'
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
 AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
-API_PATH = '/ox/3.0'
+API_PATH_V1 = '/ox/3.0/a'
+API_PATH_V2 = '/ox/4.0'
+ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
+
+class UnknownAPIFormatError(ValueError):
+    """Client is passed an unrecognized API path that it cannot handle."""
+    pass
 
 class Client(object):
 
@@ -49,7 +55,7 @@ class Client(object):
                     request_token_url=REQUEST_TOKEN_URL,
                     access_token_url=ACCESS_TOKEN_URL,
                     authorization_url=AUTHORIZATION_URL,
-                    api_path=API_PATH,
+                    api_path=API_PATH_V1,
                     email=None,
                     password=None,
                     http_proxy=None,
@@ -78,6 +84,14 @@ class Client(object):
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
+        
+        # Validate API path:
+        if api_path not in ACCEPTABLE_PATHS:
+            msg = '"{}" is not a recognized API path.'.format(api_path)
+            msg += '\nLegal paths include:'
+            for i in ACCEPTABLE_PATHS:
+                msg += '\n{}'.format(i)
+            raise UnknownAPIFormatError(msg)
 
         # These get cleared after log on attempt.
         self._email = email
