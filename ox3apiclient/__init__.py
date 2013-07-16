@@ -319,6 +319,11 @@ class Client(object):
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
 
+    def put(self, url, data=None):
+        """Issue a PUT request to url with the data."""
+        res = self.request(self._resolve_url(url), method='PUT', data=data)
+        return json.loads(res.read())
+
     def post(self, url, data=None):
         """"""
         res = self.request(self._resolve_url(url), method='POST', data=data)
