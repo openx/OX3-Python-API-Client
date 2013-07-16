@@ -269,9 +269,9 @@ class Client(object):
 
         self._cookie_jar.set_cookie(cookie)
 
-        url = '%s://%s%s/a/session/validate' % (self.scheme,
-                                                self.domain,
-                                                self.api_path)
+        url = '%s://%s%s/session/validate' % (self.scheme,
+                                              self.domain,
+                                              self.api_path)
 
         res = self.request(url=url, method='PUT')
         return res.read()
@@ -294,7 +294,7 @@ class Client(object):
 
     def logoff(self):
         """Returns self after deleting authenticated session."""
-        self.delete('/a/session')
+        self.delete('/session')
         return self
 
     def _resolve_url(self, url):
@@ -361,7 +361,7 @@ class Client(object):
         # TODO: refactor Client.request.
         # TODO: Catch errors in attempt to upload.
         headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
-        url = self._resolve_url('/a/creative/uploadcreative')
+        url = self._resolve_url('/creative/uploadcreative')
         req = urllib2.Request(url, headers=headers, data=body)
         res = urllib2.urlopen(req)
 
