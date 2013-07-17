@@ -175,11 +175,17 @@ class Client(object):
 
         # Stringify data.
         if data:
-            # Everything needs to be UTF-8 for urlencode:
+            # Everything needs to be UTF-8 for urlencode and json:
             data_utf8 = req.get_data()
             for i in data_utf8:
                 data_utf8[i] = data_utf8[i].encode('utf-8') 
-            req.add_data(urllib.urlencode(data_utf8))
+            if self.api_path == API_PATH_V1:
+                req.add_data(urllib.urlencode(data_utf8))
+            elif self.api_path == API_PATH_V2:
+                req.add_data(json.dumps(data_utf8))
+            else:
+                raise UnknownAPIFormatError(
+                    'Unrecognized API path: %s' % self.api_path)
 
         # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
         # The OpenX API uses 201 create responses and 204 for delete respones.
