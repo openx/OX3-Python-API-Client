@@ -158,6 +158,11 @@ class Client(object):
         if method == 'POST' and not data:
             data = ''
 
+        # If it's a POST or PUT request for v2, set the header
+        # to handle JSON:
+        if method in ('POST', 'PUT') and self.api_path == API_PATH_V2:
+            headers['Content-Type'] = 'application/json'
+
         req = urllib2.Request(url, headers=headers, data=data)
 
         # We need to set the request's get_method function to return a HTTP
