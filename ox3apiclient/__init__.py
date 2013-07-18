@@ -41,6 +41,7 @@ AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
 API_PATH_V1 = '/ox/3.0'
 API_PATH_V2 = '/ox/4.0'
 ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2)
+JSON_PATHS = (API_PATH_V2,)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
 
 class UnknownAPIFormatError(ValueError):
@@ -149,18 +150,18 @@ class Client(object):
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
 
-    def request(self, url, method='GET', headers={}, data=None, sign=False):
+    def request(self, url, method='GET', headers={}, data=None, sign=False,
+                send_json=False):
         """Helper method to make a (optionally OAuth signed) HTTP request."""
 
         # Since we are using a urllib2.Request object we need to assign a value
         # other than None to "data" in order to make the request a POST request,
         # even if there is no data to post.
-        if method == 'POST' and not data:
+        if method in ('POST', 'PUT') and not data:
             data = ''
 
-        # If it's a POST or PUT request for v2, set the header
-        # to handle JSON:
-        if method in ('POST', 'PUT') and self.api_path == API_PATH_V2:
+        # If we're sending a JSON blob, we need to specify the header:
+        if method in ('POST', 'PUT') and send_json:
             headers['Content-Type'] = 'application/json'
 
         req = urllib2.Request(url, headers=headers, data=data)
@@ -179,13 +180,10 @@ class Client(object):
             data_utf8 = req.get_data()
             for i in data_utf8:
                 data_utf8[i] = data_utf8[i].encode('utf-8') 
-            if self.api_path == API_PATH_V1:
-                req.add_data(urllib.urlencode(data_utf8))
-            elif self.api_path == API_PATH_V2:
+            if send_json:
                 req.add_data(json.dumps(data_utf8))
             else:
-                raise UnknownAPIFormatError(
-                    'Unrecognized API path: %s' % self.api_path)
+                req.add_data(urllib.urlencode(data_utf8))
 
         # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
         # The OpenX API uses 201 create responses and 204 for delete respones.
@@ -280,20 +278,15 @@ class Client(object):
 
         self._cookie_jar.set_cookie(cookie)
 
+        # v2 doesn't need this extra step, just the cookie:
         if self.api_path == API_PATH_V1:
             url_format = '%s://%s%s/a/session/validate'
-        elif self.api_path == API_PATH_V2:
-            url_format = '%s://%s%s/session/validate'
-        else:
-            raise UnknownAPIFormatError(
-                'Unrecognized API path: %s' % self.api_path)
+            url = url_format % (self.scheme,
+                                self.domain,
+                                self.api_path)
 
-        url = url_format % (self.scheme,
-                            self.domain,
-                            self.api_path)
-
-        res = self.request(url=url, method='PUT')
-        return res.read()
+            res = self.request(url=url, method='PUT')
+            return res.read()
 
     def logon(self, email=None, password=None):
         """Returns self after authentication.
@@ -346,12 +339,14 @@ class Client(object):
 
     def put(self, url, data=None):
         """Issue a PUT request to url with the data."""
-        res = self.request(self._resolve_url(url), method='PUT', data=data)
+        res = self.request(self._resolve_url(url), method='PUT', data=data,
+                           send_json=(self.api_path in JSON_PATHS))
         return json.loads(res.read())
 
     def post(self, url, data=None):
         """"""
-        res = self.request(self._resolve_url(url), method='POST', data=data)
+        res = self.request(self._resolve_url(url), method='POST', data=data,
+                           send_json=(self.api_path in JSON_PATHS))
         return json.loads(res.read())
 
     def delete(self, url):
