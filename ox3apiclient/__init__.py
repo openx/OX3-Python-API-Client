@@ -179,7 +179,12 @@ class Client(object):
             # Everything needs to be UTF-8 for urlencode and json:
             data_utf8 = req.get_data()
             for i in data_utf8:
-                data_utf8[i] = data_utf8[i].encode('utf-8') 
+                # Non-string ints don't have encode and can
+                # be handled by json.dumps already:
+                try:
+                    data_utf8[i] = data_utf8[i].encode('utf-8')
+                except AttributeError:
+                    pass
             if send_json:
                 req.add_data(json.dumps(data_utf8))
             else:
