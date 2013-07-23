@@ -341,6 +341,14 @@ class Client(object):
         """"""
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
+    def options(self, url):
+        """Send a request with HTTP method OPTIONS.
+        
+        OX3 v2 uses this method for showing help information.
+        
+        """
+        res = self.request(self._resolve_url(url), method='OPTIONS')
+        return json.loads(res.read())
 
     def put(self, url, data=None):
         """Issue a PUT request to url with the data."""
