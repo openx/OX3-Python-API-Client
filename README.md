@@ -6,6 +6,9 @@ httplib2. Instead it uses urllib2 as the HTTP transport.
 
 It currently supports Python 2.4 - 2.7, with 3.x support comming in the future.
 
+As of version 0.4.0, ox3apiclient supports API v2. If your instance is v2,
+set the api_path option to "/ox/4.0".
+
 Basic usage:
 
 ````python
@@ -102,4 +105,3 @@ ox = ox3apiclient.Client(
 
 ox.logon(email, password)
 ````
-Test
