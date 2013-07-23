@@ -341,6 +341,7 @@ class Client(object):
         """"""
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
+        
     def options(self, url):
         """Send a request with HTTP method OPTIONS.
         
