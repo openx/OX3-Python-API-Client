@@ -49,6 +49,13 @@ class UnknownAPIFormatError(ValueError):
     pass
 
 class Client(object):
+    """Client for making requests to the OX3 API. Maintains
+    authentication and points all requests at a domain+path
+    combination. Handles request and response data in the form
+    of Python dictionaries, translated to and from the JSON and
+    query string encoding the API itself uses.
+
+    """ 
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
                     callback_url='oob',
@@ -321,7 +328,10 @@ class Client(object):
         return self
 
     def _resolve_url(self, url):
-        """"""
+        """Converts an API path shorthand into a full URL unless
+        given a full url already.
+
+        """
         parse_res = urlparse.urlparse(url)
 
         # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
@@ -338,12 +348,15 @@ class Client(object):
         return url
 
     def get(self, url):
-        """"""
+        """Issue a GET request to the given URL or API shorthand
+
+        """
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
         
     def options(self, url):
-        """Send a request with HTTP method OPTIONS.
+        """Send a request with HTTP method OPTIONS to the given
+        URL or API shorthand.
         
         OX3 v2 uses this method for showing help information.
         
@@ -352,19 +365,25 @@ class Client(object):
         return json.loads(res.read())
 
     def put(self, url, data=None):
-        """Issue a PUT request to url with the data."""
+        """Issue a PUT request to url (either a full URL or API
+        shorthand) with the data.
+
+        """
         res = self.request(self._resolve_url(url), method='PUT', data=data,
                            send_json=(self.api_path in JSON_PATHS))
         return json.loads(res.read())
 
     def post(self, url, data=None):
-        """"""
+        """Issue a POST request to url (either a full URL or API
+        shorthand) with the data.
+
+        """
         res = self.request(self._resolve_url(url), method='POST', data=data,
                            send_json=(self.api_path in JSON_PATHS))
         return json.loads(res.read())
 
     def delete(self, url):
-        """"""
+        """Issue a DELETE request to the URL or API shorthand."""
         res = self.request(self._resolve_url(url), method='DELETE')
         # Catch no content responses from some delete actions.
         if res.code == 204:
@@ -372,7 +391,10 @@ class Client(object):
         return json.loads(res.read())
 
     def upload_creative(self, account_id, file_path):
-        """"""
+        """Upload a media creative to the account with ID
+        account_id from the local file_path.
+
+        """
         # Thanks to nosklo for his answer on SO:
         # http://stackoverflow.com/a/681182
         boundary = '-----------------------------' + str(int(random.random()*1e10))
