@@ -42,7 +42,7 @@ API_PATH_V1 = '/ox/3.0'
 API_PATH_V2 = '/ox/4.0'
 ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2)
 JSON_PATHS = (API_PATH_V2,)
-HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
+HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
 
 class UnknownAPIFormatError(ValueError):
     """Client is passed an unrecognized API path that it cannot handle."""
