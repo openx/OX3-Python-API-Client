@@ -33,7 +33,7 @@ else:
 
 import urlparse
 
-__version__ = '0.3.1'
+__version__ = '0.4.0'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
