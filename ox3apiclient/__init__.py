@@ -33,15 +33,29 @@ else:
 
 import urlparse
 
-__version__ = '0.3.1'
+__version__ = '0.4.0'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
 AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
-API_PATH = '/ox/3.0'
-HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
+API_PATH_V1 = '/ox/3.0'
+API_PATH_V2 = '/ox/4.0'
+ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2)
+JSON_PATHS = (API_PATH_V2,)
+HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
+
+class UnknownAPIFormatError(ValueError):
+    """Client is passed an unrecognized API path that it cannot handle."""
+    pass
 
 class Client(object):
+    """Client for making requests to the OX3 API. Maintains
+    authentication and points all requests at a domain+path
+    combination. Handles request and response data in the form
+    of Python dictionaries, translated to and from the JSON and
+    query string encoding the API itself uses.
+
+    """ 
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
                     callback_url='oob',
@@ -49,7 +63,7 @@ class Client(object):
                     request_token_url=REQUEST_TOKEN_URL,
                     access_token_url=ACCESS_TOKEN_URL,
                     authorization_url=AUTHORIZATION_URL,
-                    api_path=API_PATH,
+                    api_path=API_PATH_V1,
                     email=None,
                     password=None,
                     http_proxy=None,
@@ -78,6 +92,14 @@ class Client(object):
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
+        
+        # Validate API path:
+        if api_path not in ACCEPTABLE_PATHS:
+            msg = '"{}" is not a recognized API path.'.format(api_path)
+            msg += '\nLegal paths include:'
+            for i in ACCEPTABLE_PATHS:
+                msg += '\n{}'.format(i)
+            raise UnknownAPIFormatError(msg)
 
         # These get cleared after log on attempt.
         self._email = email
@@ -135,14 +157,19 @@ class Client(object):
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
 
-    def request(self, url, method='GET', headers={}, data=None, sign=False):
+    def request(self, url, method='GET', headers={}, data=None, sign=False,
+                send_json=False):
         """Helper method to make a (optionally OAuth signed) HTTP request."""
 
         # Since we are using a urllib2.Request object we need to assign a value
         # other than None to "data" in order to make the request a POST request,
         # even if there is no data to post.
-        if method == 'POST' and not data:
+        if method in ('POST', 'PUT') and not data:
             data = ''
+
+        # If we're sending a JSON blob, we need to specify the header:
+        if method in ('POST', 'PUT') and send_json:
+            headers['Content-Type'] = 'application/json'
 
         req = urllib2.Request(url, headers=headers, data=data)
 
@@ -156,11 +183,19 @@ class Client(object):
 
         # Stringify data.
         if data:
-            # Everything needs to be UTF-8 for urlencode:
+            # Everything needs to be UTF-8 for urlencode and json:
             data_utf8 = req.get_data()
             for i in data_utf8:
-                data_utf8[i] = data_utf8[i].encode('utf-8') 
-            req.add_data(urllib.urlencode(data_utf8))
+                # Non-string ints don't have encode and can
+                # be handled by json.dumps already:
+                try:
+                    data_utf8[i] = data_utf8[i].encode('utf-8')
+                except AttributeError:
+                    pass
+            if send_json:
+                req.add_data(json.dumps(data_utf8))
+            else:
+                req.add_data(urllib.urlencode(data_utf8))
 
         # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
         # The OpenX API uses 201 create responses and 204 for delete respones.
@@ -255,12 +290,15 @@ class Client(object):
 
         self._cookie_jar.set_cookie(cookie)
 
-        url = '%s://%s%s/a/session/validate' % (self.scheme,
-                                                self.domain,
-                                                self.api_path)
+        # v2 doesn't need this extra step, just the cookie:
+        if self.api_path == API_PATH_V1:
+            url_format = '%s://%s%s/a/session/validate'
+            url = url_format % (self.scheme,
+                                self.domain,
+                                self.api_path)
 
-        res = self.request(url=url, method='PUT')
-        return res.read()
+            res = self.request(url=url, method='PUT')
+            return res.read()
 
     def logon(self, email=None, password=None):
         """Returns self after authentication.
@@ -280,11 +318,20 @@ class Client(object):
 
     def logoff(self):
         """Returns self after deleting authenticated session."""
-        self.delete('/a/session')
+        if self.api_path == API_PATH_V1:
+            self.delete('/a/session')
+        elif self.api_path == API_PATH_V2:
+            self.delete('/session')
+        else:
+            raise UnknownAPIFormatError(
+                'Unrecognized API path: %s' % self.api_path)
         return self
 
     def _resolve_url(self, url):
-        """"""
+        """Converts an API path shorthand into a full URL unless
+        given a full url already.
+
+        """
         parse_res = urlparse.urlparse(url)
 
         # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
@@ -301,17 +348,42 @@ class Client(object):
         return url
 
     def get(self, url):
-        """"""
+        """Issue a GET request to the given URL or API shorthand
+
+        """
         res = self.request(self._resolve_url(url), method='GET')
+        return json.loads(res.read())
+        
+    def options(self, url):
+        """Send a request with HTTP method OPTIONS to the given
+        URL or API shorthand.
+        
+        OX3 v2 uses this method for showing help information.
+        
+        """
+        res = self.request(self._resolve_url(url), method='OPTIONS')
+        return json.loads(res.read())
+
+    def put(self, url, data=None):
+        """Issue a PUT request to url (either a full URL or API
+        shorthand) with the data.
+
+        """
+        res = self.request(self._resolve_url(url), method='PUT', data=data,
+                           send_json=(self.api_path in JSON_PATHS))
         return json.loads(res.read())
 
     def post(self, url, data=None):
-        """"""
-        res = self.request(self._resolve_url(url), method='POST', data=data)
+        """Issue a POST request to url (either a full URL or API
+        shorthand) with the data.
+
+        """
+        res = self.request(self._resolve_url(url), method='POST', data=data,
+                           send_json=(self.api_path in JSON_PATHS))
         return json.loads(res.read())
 
     def delete(self, url):
-        """"""
+        """Issue a DELETE request to the URL or API shorthand."""
         res = self.request(self._resolve_url(url), method='DELETE')
         # Catch no content responses from some delete actions.
         if res.code == 204:
@@ -319,7 +391,10 @@ class Client(object):
         return json.loads(res.read())
 
     def upload_creative(self, account_id, file_path):
-        """"""
+        """Upload a media creative to the account with ID
+        account_id from the local file_path.
+
+        """
         # Thanks to nosklo for his answer on SO:
         # http://stackoverflow.com/a/681182
         boundary = '-----------------------------' + str(int(random.random()*1e10))
@@ -347,7 +422,13 @@ class Client(object):
         # TODO: refactor Client.request.
         # TODO: Catch errors in attempt to upload.
         headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
-        url = self._resolve_url('/a/creative/uploadcreative')
+        if self.api_path == API_PATH_V1:
+            url = self._resolve_url('/a/creative/uploadcreative')
+        elif self.api_path == API_PATH_V2:
+            url = self._resolve_url('/creative/uploadcreative')
+        else:
+            raise UnknownAPIFormatError(
+                'Unrecognized API path: %s' % self.api_path)
         req = urllib2.Request(url, headers=headers, data=body)
         res = urllib2.urlopen(req)
 
