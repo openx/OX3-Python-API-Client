@@ -1,3 +1,8 @@
+0.4.0 / 2013-07-23
+==================
+ * Added handling for API v2
+ * Refined docstrings throughout code
+
 0.3.1 / 2013-06-04
 ==================
  * Removed: Realm Support
