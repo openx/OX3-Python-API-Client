@@ -67,7 +67,8 @@ class Client(object):
                     email=None,
                     password=None,
                     http_proxy=None,
-                    https_proxy=None):
+                    https_proxy=None,
+                    headers={}):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -81,6 +82,7 @@ class Client(object):
         authorization_url -- Only override for debugging.
         api_path -- Only override for debugging.
         http_proxy -- Optional proxy to send HTTP requests through.
+        headers -- list of headers to send with the request
         """
         
         self.domain = domain
@@ -92,6 +94,7 @@ class Client(object):
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
+        self.headers = headers
         
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
@@ -167,6 +170,7 @@ class Client(object):
         if method in ('POST', 'PUT') and not data:
             data = ''
 
+        headers = headers or self.headers
         # If we're sending a JSON blob, we need to specify the header:
         if method in ('POST', 'PUT') and send_json:
             headers['Content-Type'] = 'application/json'
