@@ -33,7 +33,7 @@ else:
 
 import urlparse
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
@@ -43,7 +43,8 @@ HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT']
 
 class Client(object):
 
-    def __init__(self, domain, realm, consumer_key, consumer_secret,
+    def __init__(self, domain, consumer_key, consumer_secret,
+                    realm='',
                     callback_url='oob',
                     scheme='http',
                     request_token_url=REQUEST_TOKEN_URL,
@@ -57,9 +58,9 @@ class Client(object):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
-        realm -- This is no longer used. Just specify None.
         consumer_key -- Your consumer key.
         consumer_secret -- Your consumer secret.
+        realm -- Optional realm.
         callback_url -- Callback URL to redirect to on successful authorization.
             We default to 'oob' for headless login.
         request_token -- Only override for debugging.
@@ -72,6 +73,7 @@ class Client(object):
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
+        self.realm=realm
         self.callback_url = callback_url
         self.scheme=scheme
         self.request_token_url = request_token_url
@@ -131,7 +133,8 @@ class Client(object):
             self._consumer,
             self._token)
 
-        req.headers.update(oauth_req.to_header())
+        req.headers.update(oauth_req.to_header(realm=self.realm))
+
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
 
@@ -392,6 +395,7 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     # Load optional parameters.
     optional_params = [
+        'realm',
         'callback_url',
         'scheme',
         'request_token_url',
