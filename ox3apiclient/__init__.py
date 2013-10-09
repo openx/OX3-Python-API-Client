@@ -20,7 +20,7 @@ else:
 if major_py_version == 2 and minor_py_version > 4:
     import oauth2 as oauth
 else:
-    import oauth2_version as oauth 
+    import oauth2_version as oauth
 
 import urllib
 import urllib2
@@ -68,7 +68,7 @@ class Client(object):
         api_path -- Only override for debugging.
         http_proxy -- Optional proxy to send HTTP requests through.
         """
-        
+
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
@@ -130,7 +130,7 @@ class Client(object):
             oauth.SignatureMethod_HMAC_SHA1(),
             self._consumer,
             self._token)
-        
+
         req.headers.update(oauth_req.to_header())
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
@@ -159,7 +159,7 @@ class Client(object):
             # Everything needs to be UTF-8 for urlencode:
             data_utf8 = req.get_data()
             for i in data_utf8:
-                data_utf8[i] = data_utf8[i].encode('utf-8') 
+                data_utf8[i] = data_utf8[i].encode('utf-8')
             req.add_data(urllib.urlencode(data_utf8))
 
         # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
