@@ -1,4 +1,4 @@
-0.3.1 / 2013-06-04
+0.3.2 / 2013-10-09
 ==================
 * Added: Optional realm support
      * `Client.__init__`'s `realm` parameter is now optional (or named).
