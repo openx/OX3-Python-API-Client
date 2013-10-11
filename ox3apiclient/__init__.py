@@ -73,9 +73,9 @@ class Client(object):
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
-        self.realm=realm
+        self.realm = realm
         self.callback_url = callback_url
-        self.scheme=scheme
+        self.scheme = scheme
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
