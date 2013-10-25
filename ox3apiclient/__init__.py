@@ -40,7 +40,8 @@ ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
 AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
 API_PATH_V1 = '/ox/3.0'
 API_PATH_V2 = '/ox/4.0'
-ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2)
+API_PATH_SSO = '/api'
+ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2, API_PATH_SSO)
 JSON_PATHS = (API_PATH_V2,)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
 
