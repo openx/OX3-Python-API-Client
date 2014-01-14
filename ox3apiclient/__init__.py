@@ -69,7 +69,7 @@ class Client(object):
                     password=None,
                     http_proxy=None,
                     https_proxy=None,
-                    headers={}):
+                    headers=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -95,7 +95,7 @@ class Client(object):
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
-        self.headers = headers
+        self.headers = headers or {}
         
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
@@ -161,7 +161,7 @@ class Client(object):
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
 
-    def request(self, url, method='GET', headers={}, data=None, sign=False,
+    def request(self, url, method='GET', headers=None, data=None, sign=False,
                 send_json=False):
         """Helper method to make a (optionally OAuth signed) HTTP request."""
 
