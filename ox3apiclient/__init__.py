@@ -69,7 +69,8 @@ class Client(object):
                     password=None,
                     http_proxy=None,
                     https_proxy=None,
-                    headers={}):
+                    headers={},
+                    debug=False):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -84,6 +85,7 @@ class Client(object):
         api_path -- Only override for debugging.
         http_proxy -- Optional proxy to send HTTP requests through.
         headers -- list of headers to send with the request
+        debug -- flag to turn on urllib2 debugging
         """
         
         self.domain = domain
@@ -96,6 +98,7 @@ class Client(object):
         self.authorization_url = authorization_url
         self.api_path = api_path
         self.headers = headers
+        self.debug = debug
         
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
@@ -117,8 +120,14 @@ class Client(object):
         # Similarly you probably won't need to access the cookie jar directly,
         # so it is private as well.
         self._cookie_jar = cookielib.LWPCookieJar()
-        opener = \
-            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        if (self.debug):
+            opener = \
+            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar),
+                                 urllib2.HTTPHandler(debuglevel=1),
+                                 urllib2.HTTPSHandler(debuglevel=1))
+        else:
+            opener = \
+                urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
         # Add an HTTP[S] proxy if necessary:
         proxies = {}
         if http_proxy:
@@ -352,12 +361,18 @@ class Client(object):
 
         return url
 
+    # SSO API does not return json, so just return the result body
+    def parse_result(self, res):
+        if self.api_path == API_PATH_SSO:
+            return res.read()
+        return json.loads(res.read())
+
     def get(self, url):
         """Issue a GET request to the given URL or API shorthand
 
         """
         res = self.request(self._resolve_url(url), method='GET')
-        return json.loads(res.read())
+        return self.parse_result(res)
         
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
@@ -367,7 +382,7 @@ class Client(object):
         
         """
         res = self.request(self._resolve_url(url), method='OPTIONS')
-        return json.loads(res.read())
+        return self.parse_result(res)
 
     def put(self, url, data=None):
         """Issue a PUT request to url (either a full URL or API
@@ -376,7 +391,7 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='PUT', data=data,
                            send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        return self.parse_result(res)
 
     def post(self, url, data=None):
         """Issue a POST request to url (either a full URL or API
@@ -385,7 +400,7 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='POST', data=data,
                            send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        return self.parse_result(res)
 
     def delete(self, url):
         """Issue a DELETE request to the URL or API shorthand."""
@@ -393,7 +408,7 @@ class Client(object):
         # Catch no content responses from some delete actions.
         if res.code == 204:
             return json.loads('[]')
-        return json.loads(res.read())
+        return self.parse_result(res)
 
     def upload_creative(self, account_id, file_path):
         """Upload a media creative to the account with ID
