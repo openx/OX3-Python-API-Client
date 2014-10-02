@@ -457,6 +457,7 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     # Required parameters for a ox3apiclient.Client instance.
     required_params = [
+        'realm',
         'domain',
         'consumer_key',
         'consumer_secret']
@@ -472,6 +473,7 @@ def client_from_file(file_path='.ox3rc', env=None):
         raise Exception(err_msg)
 
     client = Client(
+        realm=client_params['realm'],
         domain=client_params['domain'],
         consumer_key=client_params['consumer_key'],
         consumer_secret=client_params['consumer_secret'])
