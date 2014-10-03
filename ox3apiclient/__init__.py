@@ -58,13 +58,14 @@ class Client(object):
 
     """ 
 
-    def __init__(self, domain, realm, consumer_key, consumer_secret,
+    def __init__(self, domain, consumer_key, consumer_secret,
                     callback_url='oob',
                     scheme='http',
                     request_token_url=REQUEST_TOKEN_URL,
                     access_token_url=ACCESS_TOKEN_URL,
                     authorization_url=AUTHORIZATION_URL,
                     api_path=API_PATH_V1,
+                    realm=None,
                     email=None,
                     password=None,
                     http_proxy=None,
@@ -95,6 +96,7 @@ class Client(object):
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
+        self.realm = realm
         self.headers = headers
         
         # Validate API path:
@@ -457,7 +459,6 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     # Required parameters for a ox3apiclient.Client instance.
     required_params = [
-        'realm',
         'domain',
         'consumer_key',
         'consumer_secret']
@@ -473,7 +474,6 @@ def client_from_file(file_path='.ox3rc', env=None):
         raise Exception(err_msg)
 
     client = Client(
-        realm=client_params['realm'],
         domain=client_params['domain'],
         consumer_key=client_params['consumer_key'],
         consumer_secret=client_params['consumer_secret'])
@@ -486,6 +486,7 @@ def client_from_file(file_path='.ox3rc', env=None):
         'access_token_url',
         'authorization_url',
         'api_path',
+        'realm',
         'email',
         'password']
 

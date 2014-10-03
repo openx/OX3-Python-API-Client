@@ -1,2 +1,4 @@
 .ox3rc
 *.pyc
+venv/*
+*.egg-info
