@@ -4,6 +4,8 @@ import ConfigParser
 import cookielib
 import mimetypes
 import random
+from django.core.cache import cache
+from displayads.ck import *
 
 # json module is not supported in versions of Python < 2.6 so try to load the
 # simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
@@ -213,11 +215,16 @@ class Client(object):
         except urllib2.HTTPError, err:
             if err.code in [201, 204]:
                 res = err
+            elif err.code == 400:
+                # OpenX returns a 400 - Bad Request when something goes wrong
+                # We want to be able to pass that error on to the front end in some cases so lets throw a 
+                # custom exception for the caller to handle
+                error_msg = { 'error': json.loads(err.read())[0]['message'] }
+                print error_msg
+                raise OpenXError(error_msg)
             else:
-                # TODO: Decide on format and what extra data to alert user for
-                # troubleshooting.
                 raise err
-
+                
         return res
 
     def fetch_request_token(self):
@@ -234,6 +241,13 @@ class Client(object):
         # Give precedence to credentials passed in methods calls over those set
         # in the instance. This allows you to override user creds that may have
         # been loaded from a file.
+        if(cache.get('verifier')):
+            print "verifier from cache"
+            self._token.set_verifier(cache.get('verifier'))
+            return
+        else:
+            print "verifier NOT from cache"
+
         if not email:
             email = self._email
 
@@ -249,17 +263,24 @@ class Client(object):
             'password': password,
             'oauth_token': self._token.key}
 
-        res = self.request(
-                url=self.authorization_url,
-                method='POST',
-                data=data,
-                sign=True)
+        for tries in range(0,3):
+            res = self.request(
+                    url=self.authorization_url,
+                    method='POST',
+                    data=data,
+                    sign=True)
+                
+            parsed = parse_qs(res.read())
+
+            if('oauth_verifier' in parsed):
+                verifier = parsed['oauth_verifier'][0]
+                cache.set('verifier', verifier)
+                break
+
+        self._token.set_verifier(verifier)
 
         # Clear user credentials.
         self._email = self._password = None
-
-        verifier = parse_qs(res.read())['oauth_verifier'][0]
-        self._token.set_verifier(verifier)
 
     def fetch_access_token(self):
         """Helper method to fetch and set access token.
