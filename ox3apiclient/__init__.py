@@ -4,6 +4,7 @@ import ConfigParser
 import cookielib
 import mimetypes
 import random
+from displayads.ck import *
 
 # json module is not supported in versions of Python < 2.6 so try to load the
 # simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
@@ -211,9 +212,14 @@ class Client(object):
         except urllib2.HTTPError, err:
             if err.code in [201, 204]:
                 res = err
+            elif err.code == 400:
+                # OpenX returns a 400 - Bad Request when something goes wrong
+                # We want to be able to pass that error on to the front end in some cases so lets throw a 
+                # custom exception for the caller to handle
+                error_msg = { 'error': json.loads(err.read())[0]['message'] }
+                print error_msg
+                raise OpenXError(error_msg)
             else:
-                # TODO: Decide on format and what extra data to alert user for
-                # troubleshooting.
                 raise err
 
         return res
