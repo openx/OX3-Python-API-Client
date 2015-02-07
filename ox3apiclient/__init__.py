@@ -4,8 +4,6 @@ import ConfigParser
 import cookielib
 import mimetypes
 import random
-from django.core.cache import cache
-from displayads.ck import *
 
 # json module is not supported in versions of Python < 2.6 so try to load the
 # simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
@@ -57,7 +55,6 @@ class Client(object):
     combination. Handles request and response data in the form
     of Python dictionaries, translated to and from the JSON and
     query string encoding the API itself uses.
-
     """ 
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
@@ -73,7 +70,6 @@ class Client(object):
                     https_proxy=None,
                     headers={}):
         """
-
         domain -- Your UI domain. The API is accessed off this domain.
         realm -- This is no longer used. Just specify None.
         consumer_key -- Your consumer key.
@@ -215,21 +211,15 @@ class Client(object):
         except urllib2.HTTPError, err:
             if err.code in [201, 204]:
                 res = err
-            elif err.code == 400:
-                # OpenX returns a 400 - Bad Request when something goes wrong
-                # We want to be able to pass that error on to the front end in some cases so lets throw a 
-                # custom exception for the caller to handle
-                error_msg = { 'error': json.loads(err.read())[0]['message'] }
-                print error_msg
-                raise OpenXError(error_msg)
             else:
+                # TODO: Decide on format and what extra data to alert user for
+                # troubleshooting.
                 raise err
-                
+
         return res
 
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
-
         Returns token string.
         """
         res = self.request(url=self.request_token_url, method='POST', sign=True)
@@ -241,13 +231,6 @@ class Client(object):
         # Give precedence to credentials passed in methods calls over those set
         # in the instance. This allows you to override user creds that may have
         # been loaded from a file.
-        if(cache.get('verifier')):
-            print "verifier from cache"
-            self._token.set_verifier(cache.get('verifier'))
-            return
-        else:
-            print "verifier NOT from cache"
-
         if not email:
             email = self._email
 
@@ -263,28 +246,20 @@ class Client(object):
             'password': password,
             'oauth_token': self._token.key}
 
-        for tries in range(0,3):
-            res = self.request(
-                    url=self.authorization_url,
-                    method='POST',
-                    data=data,
-                    sign=True)
-                
-            parsed = parse_qs(res.read())
-
-            if('oauth_verifier' in parsed):
-                verifier = parsed['oauth_verifier'][0]
-                cache.set('verifier', verifier)
-                break
-
-        self._token.set_verifier(verifier)
+        res = self.request(
+                url=self.authorization_url,
+                method='POST',
+                data=data,
+                sign=True)
 
         # Clear user credentials.
         self._email = self._password = None
 
+        verifier = parse_qs(res.read())['oauth_verifier'][0]
+        self._token.set_verifier(verifier)
+
     def fetch_access_token(self):
         """Helper method to fetch and set access token.
-
         Returns token string.
         """
         res = self.request(url=self.access_token_url, method='POST', sign=True)
@@ -328,14 +303,14 @@ class Client(object):
 
     def logon(self, email=None, password=None):
         """Returns self after authentication.
-
         Single call to complete OAuth login process.
-
         Keyword arguments:
         email -- user email address.
         password -- user password.
-
         """
+
+        self.headers = {}
+        
         self.fetch_request_token()
         self.authorize_token(email=email, password=password)
         self.fetch_access_token()
@@ -356,7 +331,6 @@ class Client(object):
     def _resolve_url(self, url):
         """Converts an API path shorthand into a full URL unless
         given a full url already.
-
         """
         parse_res = urlparse.urlparse(url)
 
@@ -375,7 +349,6 @@ class Client(object):
 
     def get(self, url):
         """Issue a GET request to the given URL or API shorthand
-
         """
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
@@ -393,7 +366,6 @@ class Client(object):
     def put(self, url, data=None):
         """Issue a PUT request to url (either a full URL or API
         shorthand) with the data.
-
         """
         res = self.request(self._resolve_url(url), method='PUT', data=data,
                            send_json=(self.api_path in JSON_PATHS))
@@ -402,7 +374,6 @@ class Client(object):
     def post(self, url, data=None):
         """Issue a POST request to url (either a full URL or API
         shorthand) with the data.
-
         """
         res = self.request(self._resolve_url(url), method='POST', data=data,
                            send_json=(self.api_path in JSON_PATHS))
@@ -419,7 +390,6 @@ class Client(object):
     def upload_creative(self, account_id, file_path):
         """Upload a media creative to the account with ID
         account_id from the local file_path.
-
         """
         # Thanks to nosklo for his answer on SO:
         # http://stackoverflow.com/a/681182
@@ -462,11 +432,9 @@ class Client(object):
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.
-
     Keyword arguments:
     file_path -- the file to load. Default is '.ox3rc' form current dir.
     env -- the env section to load. Default will be first env section.
-
     """
     cp = ConfigParser.RawConfigParser()
     cp.read(file_path)
