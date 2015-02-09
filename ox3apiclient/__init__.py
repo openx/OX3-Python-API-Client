@@ -218,7 +218,7 @@ class Client(object):
                 # custom exception for the caller to handle
                 error_msg = { 'error': json.loads(err.read())[0]['message'] }
                 print error_msg
-                raise OpenXError(error_msg)
+                raise AdvertisorError(error_msg)
             else:
                 raise err
 
