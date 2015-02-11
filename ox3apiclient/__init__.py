@@ -216,7 +216,13 @@ class Client(object):
                 # OpenX returns a 400 - Bad Request when something goes wrong
                 # We want to be able to pass that error on to the front end in some cases so lets throw a 
                 # custom exception for the caller to handle
-                error_msg = { 'error': json.loads(err.read())[0]['message'] }
+                # the reporting returns a different object then the rest of openx, so lets see what we have before parsing
+                error_json = json.loads(err.read())
+                if 'message' in error_json:
+                    error_msg = { 'error': error_json['message'] }
+                else:
+                    error_msg = { 'error': error_json[0]['message'] }
+
                 print error_msg
                 raise AdvertiserError(error_msg)
             else:
