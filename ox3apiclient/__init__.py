@@ -69,7 +69,8 @@ class Client(object):
                     password=None,
                     http_proxy=None,
                     https_proxy=None,
-                    headers={}):
+                    headers={},
+                    debug=False):
         """
         domain -- Your UI domain. The API is accessed off this domain.
         realm -- This is no longer used. Just specify None.
@@ -95,7 +96,8 @@ class Client(object):
         self.authorization_url = authorization_url
         self.api_path = api_path
         self.headers = headers
-        
+        self.debug = debug
+
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
             msg = '"{}" is not a recognized API path.'.format(api_path)
@@ -116,8 +118,14 @@ class Client(object):
         # Similarly you probably won't need to access the cookie jar directly,
         # so it is private as well.
         self._cookie_jar = cookielib.LWPCookieJar()
-        opener = \
-            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        if (self.debug):
+            opener = \
+            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar),
+                                 urllib2.HTTPHandler(debuglevel=1),
+                                 urllib2.HTTPSHandler(debuglevel=1))
+        else:
+            opener = \
+                urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
         # Add an HTTP[S] proxy if necessary:
         proxies = {}
         if http_proxy:
