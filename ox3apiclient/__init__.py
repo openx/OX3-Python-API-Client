@@ -21,7 +21,7 @@ else:
 if major_py_version == 2 and minor_py_version > 4:
     import oauth2 as oauth
 else:
-    import oauth2_version as oauth 
+    import oauth2_version as oauth
 
 import urllib
 import urllib2
@@ -56,7 +56,7 @@ class Client(object):
     combination. Handles request and response data in the form
     of Python dictionaries, translated to and from the JSON and
     query string encoding the API itself uses.
-    """ 
+    """
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
                     callback_url='oob',
@@ -85,7 +85,7 @@ class Client(object):
         http_proxy -- Optional proxy to send HTTP requests through.
         headers -- list of headers to send with the request
         """
-        
+
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
@@ -163,7 +163,7 @@ class Client(object):
             oauth.SignatureMethod_HMAC_SHA1(),
             self._consumer,
             self._token)
-        
+
         req.headers.update(oauth_req.to_header())
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
@@ -222,7 +222,7 @@ class Client(object):
                 res = err
             elif err.code == 400:
                 # OpenX returns a 400 - Bad Request when something goes wrong
-                # We want to be able to pass that error on to the front end in some cases so lets throw a 
+                # We want to be able to pass that error on to the front end in some cases so lets throw a
                 # custom exception for the caller to handle
                 # the reporting returns a different object then the rest of openx, so lets see what we have before parsing
                 error_json = json.loads(err.read())
@@ -330,7 +330,7 @@ class Client(object):
         """
 
         self.headers = {}
-        
+
         self.fetch_request_token()
         self.authorize_token(email=email, password=password)
         self.fetch_access_token()
@@ -372,13 +372,13 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
-        
+
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
         URL or API shorthand.
-        
+
         OX3 v2 uses this method for showing help information.
-        
+
         """
         res = self.request(self._resolve_url(url), method='OPTIONS')
         return json.loads(res.read())
@@ -439,9 +439,9 @@ class Client(object):
         # TODO: Catch errors in attempt to upload.
         headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
         if self.api_path == API_PATH_V1:
-            url = self._resolve_url('/a/creative/uploadcreative')
+            url = self._resolve_url('/a/creative/upload_creative')
         elif self.api_path == API_PATH_V2:
-            url = self._resolve_url('/creative/uploadcreative')
+            url = self._resolve_url('/creative/upload_creative')
         else:
             raise UnknownAPIFormatError(
                 'Unrecognized API path: %s' % self.api_path)
