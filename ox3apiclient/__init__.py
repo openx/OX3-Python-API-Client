@@ -407,9 +407,9 @@ class Client(object):
             return json.loads('[]')
         return json.loads(res.read())
 
-    def upload_creative(self, account_id, file_path):
+    def upload_creative(self, account_uid, file_path):
         """Upload a media creative to the account with ID
-        account_id from the local file_path.
+        account_uid from the local file_path.
         """
         # Thanks to nosklo for his answer on SO:
         # http://stackoverflow.com/a/681182
@@ -418,9 +418,9 @@ class Client(object):
 
         # Set account ID part.
         parts.append('--' + boundary)
-        parts.append('Content-Disposition: form-data; name="account_id"')
+        parts.append('Content-Disposition: form-data; name="account_uid"')
         parts.append('')
-        parts.append(str(account_id))
+        parts.append(str(account_uid))
 
         # Set creative contents part.
         parts.append('--' + boundary)
