@@ -227,9 +227,9 @@ class Client(object):
                 # the reporting returns a different object then the rest of openx, so lets see what we have before parsing
                 error_json = json.loads(err.read())
                 if 'message' in error_json:
-                    error_msg = { 'error': error_json['message'] }
+                    error_msg = { '__all__': [error_json['message']] }
                 else:
-                    error_msg = { 'error': error_json[0]['message'] }
+                    error_msg = { '__all__': [error_json[0]['message']] }
 
                 print error_msg
                 raise AdvertiserError(error_msg)
