@@ -4,6 +4,7 @@ import ConfigParser
 import cookielib
 import mimetypes
 import random
+from displayads.ck import *
 
 # json module is not supported in versions of Python < 2.6 so try to load the
 # simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
@@ -20,7 +21,7 @@ else:
 if major_py_version == 2 and minor_py_version > 4:
     import oauth2 as oauth
 else:
-    import oauth2_version as oauth 
+    import oauth2_version as oauth
 
 import urllib
 import urllib2
@@ -55,8 +56,7 @@ class Client(object):
     combination. Handles request and response data in the form
     of Python dictionaries, translated to and from the JSON and
     query string encoding the API itself uses.
-
-    """ 
+    """
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
                     callback_url='oob',
@@ -69,9 +69,9 @@ class Client(object):
                     password=None,
                     http_proxy=None,
                     https_proxy=None,
-                    headers={}):
+                    headers={},
+                    debug=False):
         """
-
         domain -- Your UI domain. The API is accessed off this domain.
         realm -- This is no longer used. Just specify None.
         consumer_key -- Your consumer key.
@@ -85,7 +85,7 @@ class Client(object):
         http_proxy -- Optional proxy to send HTTP requests through.
         headers -- list of headers to send with the request
         """
-        
+
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
@@ -96,7 +96,8 @@ class Client(object):
         self.authorization_url = authorization_url
         self.api_path = api_path
         self.headers = headers
-        
+        self.debug = debug
+
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
             msg = '"{}" is not a recognized API path.'.format(api_path)
@@ -117,8 +118,14 @@ class Client(object):
         # Similarly you probably won't need to access the cookie jar directly,
         # so it is private as well.
         self._cookie_jar = cookielib.LWPCookieJar()
-        opener = \
-            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+        if (self.debug):
+            opener = \
+            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar),
+                                 urllib2.HTTPHandler(debuglevel=1),
+                                 urllib2.HTTPSHandler(debuglevel=1))
+        else:
+            opener = \
+                urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
         # Add an HTTP[S] proxy if necessary:
         proxies = {}
         if http_proxy:
@@ -156,7 +163,7 @@ class Client(object):
             oauth.SignatureMethod_HMAC_SHA1(),
             self._consumer,
             self._token)
-        
+
         req.headers.update(oauth_req.to_header())
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
@@ -213,16 +220,26 @@ class Client(object):
         except urllib2.HTTPError, err:
             if err.code in [201, 204]:
                 res = err
+            elif err.code == 400:
+                # OpenX returns a 400 - Bad Request when something goes wrong
+                # We want to be able to pass that error on to the front end in some cases so lets throw a
+                # custom exception for the caller to handle
+                # the reporting returns a different object then the rest of openx, so lets see what we have before parsing
+                error_json = json.loads(err.read())
+                if 'message' in error_json:
+                    error_msg = { 'error': error_json['message'] }
+                else:
+                    error_msg = { 'error': error_json[0]['message'] }
+
+                print error_msg
+                raise AdvertiserError(error_msg)
             else:
-                # TODO: Decide on format and what extra data to alert user for
-                # troubleshooting.
                 raise err
 
         return res
 
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
-
         Returns token string.
         """
         res = self.request(url=self.request_token_url, method='POST', sign=True)
@@ -263,7 +280,6 @@ class Client(object):
 
     def fetch_access_token(self):
         """Helper method to fetch and set access token.
-
         Returns token string.
         """
         res = self.request(url=self.access_token_url, method='POST', sign=True)
@@ -307,14 +323,14 @@ class Client(object):
 
     def logon(self, email=None, password=None):
         """Returns self after authentication.
-
         Single call to complete OAuth login process.
-
         Keyword arguments:
         email -- user email address.
         password -- user password.
-
         """
+
+        self.headers = {}
+
         self.fetch_request_token()
         self.authorize_token(email=email, password=password)
         self.fetch_access_token()
@@ -335,7 +351,6 @@ class Client(object):
     def _resolve_url(self, url):
         """Converts an API path shorthand into a full URL unless
         given a full url already.
-
         """
         parse_res = urlparse.urlparse(url)
 
@@ -354,17 +369,16 @@ class Client(object):
 
     def get(self, url):
         """Issue a GET request to the given URL or API shorthand
-
         """
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
-        
+
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
         URL or API shorthand.
-        
+
         OX3 v2 uses this method for showing help information.
-        
+
         """
         res = self.request(self._resolve_url(url), method='OPTIONS')
         return json.loads(res.read())
@@ -372,7 +386,6 @@ class Client(object):
     def put(self, url, data=None):
         """Issue a PUT request to url (either a full URL or API
         shorthand) with the data.
-
         """
         res = self.request(self._resolve_url(url), method='PUT', data=data,
                            send_json=(self.api_path in JSON_PATHS))
@@ -381,7 +394,6 @@ class Client(object):
     def post(self, url, data=None):
         """Issue a POST request to url (either a full URL or API
         shorthand) with the data.
-
         """
         res = self.request(self._resolve_url(url), method='POST', data=data,
                            send_json=(self.api_path in JSON_PATHS))
@@ -395,10 +407,9 @@ class Client(object):
             return json.loads('[]')
         return json.loads(res.read())
 
-    def upload_creative(self, account_id, file_path):
+    def upload_creative(self, account_uid, file_path):
         """Upload a media creative to the account with ID
-        account_id from the local file_path.
-
+        account_uid from the local file_path.
         """
         # Thanks to nosklo for his answer on SO:
         # http://stackoverflow.com/a/681182
@@ -407,9 +418,9 @@ class Client(object):
 
         # Set account ID part.
         parts.append('--' + boundary)
-        parts.append('Content-Disposition: form-data; name="account_id"')
+        parts.append('Content-Disposition: form-data; name="account_uid"')
         parts.append('')
-        parts.append(str(account_id))
+        parts.append(str(account_uid))
 
         # Set creative contents part.
         parts.append('--' + boundary)
@@ -428,9 +439,9 @@ class Client(object):
         # TODO: Catch errors in attempt to upload.
         headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
         if self.api_path == API_PATH_V1:
-            url = self._resolve_url('/a/creative/uploadcreative')
+            url = self._resolve_url('/a/creative/upload_creative')
         elif self.api_path == API_PATH_V2:
-            url = self._resolve_url('/creative/uploadcreative')
+            url = self._resolve_url('/creative/upload_creative')
         else:
             raise UnknownAPIFormatError(
                 'Unrecognized API path: %s' % self.api_path)
@@ -441,11 +452,9 @@ class Client(object):
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.
-
     Keyword arguments:
     file_path -- the file to load. Default is '.ox3rc' form current dir.
     env -- the env section to load. Default will be first env section.
-
     """
     cp = ConfigParser.RawConfigParser()
     cp.read(file_path)
