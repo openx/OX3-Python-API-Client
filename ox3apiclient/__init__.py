@@ -69,7 +69,8 @@ class Client(object):
                     password=None,
                     http_proxy=None,
                     https_proxy=None,
-                    headers={}):
+                    headers={},
+                    urllib2_debuglevel=0):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -96,6 +97,7 @@ class Client(object):
         self.authorization_url = authorization_url
         self.api_path = api_path
         self.headers = headers
+        self.urllib2_debuglevel = urllib2_debuglevel
         
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
@@ -118,7 +120,7 @@ class Client(object):
         # so it is private as well.
         self._cookie_jar = cookielib.LWPCookieJar()
         opener = \
-            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
+            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar), urllib2.HTTPSHandler(debuglevel=self.urllib2_debuglevel), urllib2.HTTPHandler(debuglevel=self.urllib2_debuglevel))
         # Add an HTTP[S] proxy if necessary:
         proxies = {}
         if http_proxy:
