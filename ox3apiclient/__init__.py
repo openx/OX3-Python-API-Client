@@ -2,7 +2,9 @@
 
 import ConfigParser
 import cookielib
+import logging
 import mimetypes
+from pprint import pformat
 import random
 
 # json module is not supported in versions of Python < 2.6 so try to load the
@@ -17,13 +19,8 @@ if major_py_version == 2 and minor_py_version < 6:
 else:
     import json
 
-if major_py_version == 2 and minor_py_version > 4:
-    import oauth2 as oauth
-else:
-    import oauth2_version as oauth 
-
-import urllib
-import urllib2
+import requests
+from requests_oauthlib import OAuth1
 
 # parse_qs is in the urlparse module as of 2.6, but in cgi in earlier versions.
 if major_py_version == 2 and minor_py_version > 5:
@@ -31,9 +28,9 @@ if major_py_version == 2 and minor_py_version > 5:
 else:
     from cgi import parse_qs
 
-import urlparse
+from urlparse import urlparse
 
-__version__ = '0.4.0'
+__version__ = '0.5.0'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
@@ -42,12 +39,19 @@ API_PATH_V1 = '/ox/3.0'
 API_PATH_V2 = '/ox/4.0'
 API_PATH_SSO = '/api'
 ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2, API_PATH_SSO)
-JSON_PATHS = (API_PATH_V2,)
+JSON_PATHS = (API_PATH_V2)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
+
 
 class UnknownAPIFormatError(ValueError):
     """Client is passed an unrecognized API path that it cannot handle."""
     pass
+
+
+class OAuthException(Exception):
+    """Client encountered an Oauth error."""
+    pass
+
 
 class Client(object):
     """Client for making requests to the OX3 API. Maintains
@@ -57,6 +61,7 @@ class Client(object):
     query string encoding the API itself uses.
 
     """ 
+
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
                     callback_url='oob',
@@ -69,7 +74,8 @@ class Client(object):
                     password=None,
                     http_proxy=None,
                     https_proxy=None,
-                    headers={}):
+                    headers=None,
+                    timeout=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -84,6 +90,7 @@ class Client(object):
         api_path -- Only override for debugging.
         http_proxy -- Optional proxy to send HTTP requests through.
         headers -- list of headers to send with the request
+        timeout -- http request timeout in seconds.
         """
         
         self.domain = domain
@@ -95,7 +102,7 @@ class Client(object):
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
-        self.headers = headers
+        self.timeout = timeout
         
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
@@ -109,124 +116,79 @@ class Client(object):
         self._email = email
         self._password = password
 
-        # You shouldn't need to access the oauth2 consumer and token objects
-        # directly so we'll keep them "private".
-        self._consumer = oauth.Consumer(self.consumer_key, self.consumer_secret)
+        # You shouldn't need to access the token and session objects directly so we'll keep them private.
         self._token = None
-
-        # Similarly you probably won't need to access the cookie jar directly,
-        # so it is private as well.
-        self._cookie_jar = cookielib.LWPCookieJar()
-        opener = \
-            urllib2.build_opener(urllib2.HTTPCookieProcessor(self._cookie_jar))
-        # Add an HTTP[S] proxy if necessary:
-        proxies = {}
+        self._session = requests.Session()
+        # set supplied headers and proxies
+        if headers:
+            self._session.headers.update(headers)
         if http_proxy:
-            proxies['http'] = http_proxy
+            self._session.proxies.update({'http': http_proxy})
         if https_proxy:
-            proxies['https'] = https_proxy
-        if proxies:
-            proxy_handler = urllib2.ProxyHandler(proxies)
-            opener.add_handler(proxy_handler)
+            self._session.proxies.update({'https': https_proxy})
 
-        urllib2.install_opener(opener)
+        self.logger = logging.getLogger(__name__)
 
-    def _sign_request(self, req):
-        """Utility method to sign a request."""
-        parameters = {'oauth_callback': self.callback_url}
-        headers = req.headers
-        data = req.data
 
-        # Add any (POST) data to the parameters to be signed in the OAuth
-        # request.
-        if data:
-            parameters.update(data)
+    def log_request(self, response):
+        self.logger.debug('====={0:=<45}'.format('OX3 api call started'))
+        self.logger.debug("%s %s" % (response.request.method, response.request.url))
+        self.logger.debug('====={0:=<45}'.format('OX3 api call request headers'))
+        for k, v in response.request.headers.items():
+            self.logger.debug("%s: %s" % (k, v))
+        self.logger.debug('====={0:=<45}'.format('OX3 api call request body'))
+        self.logger.debug("%s" % response.request.body)
+        self.logger.debug('====={0:=<45}'.format('OX3 api call response headers'))
+        for k, v in response.headers.items():
+            self.logger.debug("%s: %s" % (k, v))
+        self.logger.debug('====={0:=<45}'.format('OX3 api call response body'))
+        try:
+            self.logger.debug(pformat(json.loads(response.content)))
+        except:
+            self.logger.debug("%s" % response.content)
+        self.logger.debug('====={0:=<45}'.format('OX3 api call finished'))
 
-        # Create a temporary oauth2 Request object and sign it so we can steal
-        # the Authorization header.
-        oauth_req = oauth.Request.from_consumer_and_token(
-            consumer=self._consumer,
-            token=self._token,
-            http_method=req.get_method(),
-            http_url=req.get_full_url(),
-            parameters=parameters,
-            is_form_encoded=True)
 
-        oauth_req.sign_request(
-            oauth.SignatureMethod_HMAC_SHA1(),
-            self._consumer,
-            self._token)
-        
-        req.headers.update(oauth_req.to_header())
-        return \
-            urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
-
-    def request(self, url, method='GET', headers={}, data=None, sign=False,
+    def request(self, url, method='GET', headers=None, data=None, sign=False,
                 send_json=False):
         """Helper method to make a (optionally OAuth signed) HTTP request."""
 
-        # Since we are using a urllib2.Request object we need to assign a value
-        # other than None to "data" in order to make the request a POST request,
-        # even if there is no data to post.
-        if method in ('POST', 'PUT') and not data:
-            data = ''
-
-        headers = headers or self.headers
-        # If we're sending a JSON blob, we need to specify the header:
-        if method in ('POST', 'PUT') and send_json:
-            headers['Content-Type'] = 'application/json'
-
-        req = urllib2.Request(url, headers=headers, data=data)
-
-        # We need to set the request's get_method function to return a HTTP
-        # method for any values other than GET or POST.
-        if method in HTTP_METHOD_OVERRIDES:
-            req.get_method = lambda: method
+        if headers is None:
+            headers = {}
 
         if sign:
-            req = self._sign_request(req)
-
-        # Stringify data.
-        if data:
-            # Everything needs to be UTF-8 for urlencode and json:
-            data_utf8 = req.get_data()
-            for i in data_utf8:
-                # Non-string ints don't have encode and can
-                # be handled by json.dumps already:
-                try:
-                    data_utf8[i] = data_utf8[i].encode('utf-8')
-                except AttributeError:
-                    pass
-            if send_json:
-                req.add_data(json.dumps(data_utf8))
-            else:
-                req.add_data(urllib.urlencode(data_utf8))
-
-        # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
-        # The OpenX API uses 201 create responses and 204 for delete respones.
-        # We'll catch those errors and return the HTTPError object since it can
-        # (thankfully) be used just like a Response object. A handler is
-        # probably a better approach, but this is quick and works.
-        res = '[]'
-        try:
-            res = urllib2.urlopen(req)
-        except urllib2.HTTPError, err:
-            if err.code in [201, 204]:
-                res = err
-            else:
-                # TODO: Decide on format and what extra data to alert user for
-                # troubleshooting.
-                raise err
-
-        return res
+            oauth = OAuth1(client_key=self.consumer_key,
+                           resource_owner_key=self._token,
+                           callback_uri=self.callback_url,
+                           signature_type='query')
+        else:
+            oauth = None
+        if send_json:
+            response = self._session.request(method, self._resolve_url(url), headers=headers,
+                                             json=data, auth=oauth, timeout=self.timeout)
+        else:
+            response = self._session.request(method, self._resolve_url(url), headers=headers,
+                                             data=data, auth=oauth, timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        return response
 
     def fetch_request_token(self):
         """Helper method to fetch and set request token.
 
         Returns token string.
         """
-        res = self.request(url=self.request_token_url, method='POST', sign=True)
-        self._token = oauth.Token.from_string(res.read())
+        oauth = OAuth1(client_key=self.consumer_key,
+                       client_secret=self.consumer_secret,
+                       callback_uri=self.callback_url,
+                       signature_type='auth_header')
+        response = self._session.post(url=self.request_token_url, auth=oauth, timeout=self.timeout)
+        self.log_request(response)
+        if response.status_code != 200:
+            raise OAuthException("OAuth token request failed (%s) %s" % (response.status_code, response.content))
+        credentials = parse_qs(response.content)
+        self._token = {'key': credentials['oauth_token'][0],
+                       'secret': credentials['oauth_token_secret'][0]}
         return self._token
 
     def authorize_token(self, email=None, password=None):
@@ -247,27 +209,35 @@ class Client(object):
         data = {
             'email': email,
             'password': password,
-            'oauth_token': self._token.key}
+            'oauth_token': self._token['key']}
 
-        res = self.request(
-                url=self.authorization_url,
-                method='POST',
-                data=data,
-                sign=True)
+        response = self._session.post(url=self.authorization_url, data=data, timeout=self.timeout)
+        self.log_request(response)
+        if response.status_code != 200:
+            raise OAuthException("OAuth login failed (%s) %s" % (response.status_code, response.content))
 
         # Clear user credentials.
         self._email = self._password = None
-
-        verifier = parse_qs(res.read())['oauth_verifier'][0]
-        self._token.set_verifier(verifier)
+        # set token verifier
+        self._token['verifier'] = parse_qs(response.content)['oauth_verifier'][0]
 
     def fetch_access_token(self):
         """Helper method to fetch and set access token.
 
         Returns token string.
         """
-        res = self.request(url=self.access_token_url, method='POST', sign=True)
-        self._token = oauth.Token.from_string(res.read())
+        oauth = OAuth1(client_key=self.consumer_key,
+                       client_secret=self.consumer_secret,
+                       resource_owner_key=self._token['key'],
+                       resource_owner_secret=self._token['secret'],
+                       verifier=self._token['verifier'],
+                       callback_uri=self.callback_url,
+                       signature_type='auth_header')
+        response = self._session.post(url=self.access_token_url, auth=oauth, timeout=self.timeout)
+        self.log_request(response)
+        if response.status_code != 200:
+            raise OAuthException("OAuth token verification failed (%s) %s" % (response.status_code, response.content))
+        self._token = parse_qs(response.content)['oauth_token'][0]
         return self._token
 
     def validate_session(self):
@@ -278,7 +248,7 @@ class Client(object):
         cookie = cookielib.Cookie(
             version=0,
             name='openx3_access_token',
-            value=self._token.key,
+            value=self._token,
             port=None,
             port_specified=False,
             domain=self.domain,
@@ -292,18 +262,14 @@ class Client(object):
             comment=None,
             comment_url=None,
             rest={})
+        self._session.cookies.set_cookie(cookie)
 
-        self._cookie_jar.set_cookie(cookie)
 
         # v2 doesn't need this extra step, just the cookie:
         if self.api_path == API_PATH_V1:
-            url_format = '%s://%s%s/a/session/validate'
-            url = url_format % (self.scheme,
-                                self.domain,
-                                self.api_path)
-
-            res = self.request(url=url, method='PUT')
-            return res.read()
+            response = self._session.put(url=self._resolve_url('/a/session/validate'), timeout=self.timeout)
+            self.log_request(response)
+            return response.content
 
     def logon(self, email=None, password=None):
         """Returns self after authentication.
@@ -324,12 +290,22 @@ class Client(object):
     def logoff(self):
         """Returns self after deleting authenticated session."""
         if self.api_path == API_PATH_V1:
-            self.delete('/a/session')
+            response = self._session.delete(self._resolve_url('/a/session'), timeout=self.timeout)
         elif self.api_path == API_PATH_V2:
-            self.delete('/session')
+            response = self._session.delete(self._resolve_url('/session'), timeout=self.timeout)
+        elif self.api_path == API_PATH_SSO:
+            oauth = OAuth1(client_key=self.consumer_key,
+                           resource_owner_key=self._token,
+                           callback_uri=self.callback_url,
+                           signature_type='query')
+
+            response = self._session.delete(url=self.access_token_url, auth=oauth, timeout=self.timeout)
+            if response.status_code != 204:
+                raise OAuthException("OAuth token deletion failed (%s) %s" % (response.status_code, response.content))
         else:
             raise UnknownAPIFormatError(
                 'Unrecognized API path: %s' % self.api_path)
+        self.log_request(response)
         return self
 
     def _resolve_url(self, url):
@@ -337,7 +313,7 @@ class Client(object):
         given a full url already.
 
         """
-        parse_res = urlparse.urlparse(url)
+        parse_res = urlparse(url)
 
         # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
         # subclass or tuple we can access URL components similarly across
@@ -356,8 +332,13 @@ class Client(object):
         """Issue a GET request to the given URL or API shorthand
 
         """
-        res = self.request(self._resolve_url(url), method='GET')
-        return json.loads(res.read())
+        response = self._session.get(self._resolve_url(url), timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        try:
+            return response.json()
+        except:
+            return response.content
         
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
@@ -366,34 +347,58 @@ class Client(object):
         OX3 v2 uses this method for showing help information.
         
         """
-        res = self.request(self._resolve_url(url), method='OPTIONS')
-        return json.loads(res.read())
+        response = self._session.options(self._resolve_url(url), timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        try:
+            return response.json()
+        except:
+            return response.content
 
     def put(self, url, data=None):
         """Issue a PUT request to url (either a full URL or API
         shorthand) with the data.
 
         """
-        res = self.request(self._resolve_url(url), method='PUT', data=data,
-                           send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        if self.api_path in JSON_PATHS:
+            response = self._session.put(self._resolve_url(url), data=json.dumps(data), timeout=self.timeout)
+        else:
+            response = self._session.put(self._resolve_url(url), data=data, timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        try:
+            return response.json()
+        except:
+            return response.content
 
     def post(self, url, data=None):
         """Issue a POST request to url (either a full URL or API
         shorthand) with the data.
 
         """
-        res = self.request(self._resolve_url(url), method='POST', data=data,
-                           send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        if self.api_path in JSON_PATHS:
+            response = self._session.post(self._resolve_url(url), data=json.dumps(data), timeout=self.timeout)
+        else:
+            response = self._session.post(self._resolve_url(url), data=data, timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        try:
+            return response.json()
+        except:
+            return response.content
 
     def delete(self, url):
         """Issue a DELETE request to the URL or API shorthand."""
-        res = self.request(self._resolve_url(url), method='DELETE')
+        response = requests.delete(self._resolve_url(url))
+        self.log_request(response)
+        response.raise_for_status()
         # Catch no content responses from some delete actions.
-        if res.code == 204:
-            return json.loads('[]')
-        return json.loads(res.read())
+        if response.status_code == 204:
+            return []
+        try:
+            return response.json()
+        except:
+            return response.content
 
     def upload_creative(self, account_id, file_path):
         """Upload a media creative to the account with ID
@@ -424,7 +429,6 @@ class Client(object):
 
         body = '\r\n'.join(parts)
 
-        # TODO: refactor Client.request.
         # TODO: Catch errors in attempt to upload.
         headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
         if self.api_path == API_PATH_V1:
@@ -434,10 +438,13 @@ class Client(object):
         else:
             raise UnknownAPIFormatError(
                 'Unrecognized API path: %s' % self.api_path)
-        req = urllib2.Request(url, headers=headers, data=body)
-        res = urllib2.urlopen(req)
-
-        return json.loads(res.read())
+        response = self._session.get(url, headers=headers, data=body, timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        try:
+            return response.json()
+        except:
+            return response.content
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.
@@ -485,7 +492,8 @@ def client_from_file(file_path='.ox3rc', env=None):
         'authorization_url',
         'api_path',
         'email',
-        'password']
+        'password',
+        'timeout']
 
     for param in optional_params:
         try:
