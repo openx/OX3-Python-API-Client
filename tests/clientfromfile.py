@@ -18,13 +18,11 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain',
-            'realm',
             'consumer_secret',
             'consumer_key']
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret]
 
@@ -38,13 +36,11 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain_dev',
-            'realm_dev',
             'consumer_secret_dev',
             'consumer_key_dev']
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret]
 
@@ -68,7 +64,6 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain',
-            'realm',
             'consumer_secret',
             'consumer_key',
             'callback_url',
@@ -82,7 +77,6 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret,
             ox.callback_url,
@@ -98,3 +92,7 @@ class ClientFromFileTestCase(unittest.TestCase):
         loaded_values.sort()
 
         self.assertEqual(loaded_values, test_values)
+
+if __name__ == '__main__':
+    # run this using python -m unittes -v tests from the root dir
+    unittest.main()
