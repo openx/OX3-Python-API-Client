@@ -71,22 +71,61 @@ class TestClient(unittest.TestCase):
         self.assertTrue(isinstance(ret_val, dict))
         self.assertEqual(
             (ret_val['secret'], ret_val['key']), ('secret', 'key'))
-
         # UnAuthorized Case
         self.ex_resp.status_code = 401
         with self.assertRaises(ox3apiclient.OAuthException):
             self.client.fetch_request_token()
 
-    # def test_authorize_token(self):
-    #     pass
+    @patch('ox3apiclient.Client.fetch_request_token')
+    @patch('ox3apiclient.Client.log_request')
+    def test_authorize_token(self,
+                             mock_client_log_request,
+                             mock_fetch_request_token):
+        # mock the post response, and do some setup
+        r = Mock()
+        r.content = 'oauth_verifier=verifier'
+        self.mock_requests_session.return_value.post.return_value = r
+        mock_client_log_request.return_value = None
+        mock_fetch_request_token.return_value = {'key': 'key',
+                                                 'secret': 'secret'}
+        self.client._token = {'key': 'key',
+                              'secret': 'secret'}
 
-    # def test_fetch_access_token(self):
-    #     pass
+        # UnAuthorized Case
+        r.status_code = 401
+        with self.assertRaises(ox3apiclient.OAuthException):
+            self.client.authorize_token()
+        # Authorized Case
+        r.status_code = 200
+        self.client.authorize_token()
+        self.assertEqual(self.client._token['verifier'], 'verifier')
+
+    @patch('requests_oauthlib.OAuth1')
+    @patch('ox3apiclient.Client.log_request')
+    def test_fetch_access_token(self, mock_client_log_request, mock_oauth1):
+        # mock the OAuth1 and session post response
+        mock_oauth1.return_value = 'oauth'
+        r = Mock()
+        r.content = 'oauth_token=key'
+        self.mock_requests_session.return_value.post.return_value = r
+        self.client._token = {'key': 'key',
+                              'secret': 'secret',
+                              'verifier': 'verifier'}
+
+        # UnAuthorized Case
+        r.status_code = 401
+        with self.assertRaises(ox3apiclient.OAuthException):
+            self.client.fetch_access_token()
+        # Authorized Case
+        r.status_code = 200
+        self.assertEqual(self.client.fetch_access_token(), 'key')
 
     def test_validate_session(self):
         ret_val = self.client.validate_session()
         self.assertEqual(ret_val,
-                         'oauth_token=key&oauth_token_secret=secret&oauth_callback_confirmed=true')
+                         'oauth_token=key&'
+                         'oauth_token_secret=secret&'
+                         'oauth_callback_confirmed=true')
 
     def test_logon(self):
         with nested(
