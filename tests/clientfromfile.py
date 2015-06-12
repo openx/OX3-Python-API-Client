@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
-
 import os.path
+import ox3apiclient
 import unittest
 
-import ox3apiclient
 
 class ClientFromFileTestCase(unittest.TestCase):
-
     def test_returns_client(self):
         file_path = os.path.join(os.path.dirname(__file__), 'ox3rctest')
         ox = ox3apiclient.client_from_file(file_path=file_path)
@@ -18,13 +16,11 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain',
-            'realm',
             'consumer_secret',
             'consumer_key']
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret]
 
@@ -38,13 +34,11 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain_dev',
-            'realm_dev',
             'consumer_secret_dev',
             'consumer_key_dev']
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret]
 
@@ -68,7 +62,6 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain',
-            'realm',
             'consumer_secret',
             'consumer_key',
             'callback_url',
@@ -82,7 +75,6 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret,
             ox.callback_url,
@@ -98,3 +90,8 @@ class ClientFromFileTestCase(unittest.TestCase):
         loaded_values.sort()
 
         self.assertEqual(loaded_values, test_values)
+
+
+if __name__ == '__main__':
+    # run this using python -m unittes -v tests from the root dir
+    unittest.main()

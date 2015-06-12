@@ -480,6 +480,7 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     client = Client(
         domain=client_params['domain'],
+        realm=None,
         consumer_key=client_params['consumer_key'],
         consumer_secret=client_params['consumer_secret'])
 
