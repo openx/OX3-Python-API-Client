@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import six
 from six.moves import configparser as ConfigParser
 from six.moves import http_cookiejar as cookielib
 import mimetypes
@@ -23,7 +24,7 @@ if (major_py_version == 2 and minor_py_version > 4) or major_py_version == 3:
 else:
     import oauth2_version as oauth
 
-from six.moves import urllib as urllib
+from six.moves.urllib import parse  as urllib
 from six.moves.urllib import request as urllib2
 from six.moves.urllib.error import HTTPError
 
@@ -173,7 +174,7 @@ class Client(object):
         # other than None to "data" in order to make the request a POST request,
         # even if there is no data to post.
         if method in ('POST', 'PUT') and not data:
-            data = ''
+            data = six.b('')
 
         headers = headers or self.headers
         # If we're sending a JSON blob, we need to specify the header:
@@ -192,19 +193,25 @@ class Client(object):
 
         # Stringify data.
         if data:
-            # Everything needs to be UTF-8 for urlencode and json:
-            data_utf8 = req.get_data()
-            for i in data_utf8:
-                # Non-string ints don't have encode and can
-                # be handled by json.dumps already:
-                try:
-                    data_utf8[i] = data_utf8[i].encode('utf-8')
-                except AttributeError:
-                    pass
-            if send_json:
-                req.add_data(json.dumps(data_utf8))
+            if major_py_version == 2:
+                # Everything needs to be UTF-8 for urlencode and json:
+                data_utf8 = req.get_data()
+                for i in data_utf8:
+                    # Non-string ints don't have encode and can
+                    # be handled by json.dumps already:
+                    try:
+                        data_utf8[i] = data_utf8[i].encode('utf-8')
+                    except AttributeError:
+                        pass
+                if send_json:
+                    req.add_data(json.dumps(data_utf8))
+                else:
+                    req.add_data(urllib.urlencode(data_utf8))
             else:
-                req.add_data(urllib.urlencode(data_utf8))
+                if send_json:
+                    req.data = json.dumps(req.data).encode('utf-8')
+                else:
+                    req.data = urllib.urlencode(req.data).encode('utf-8')
 
         # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
         # The OpenX API uses 201 create responses and 204 for delete respones.
@@ -229,7 +236,10 @@ class Client(object):
         Returns token string.
         """
         res = self.request(url=self.request_token_url, method='POST', sign=True)
-        self._token = oauth.Token.from_string(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        self._token = oauth.Token.from_string(result_data)
         return self._token
 
     def authorize_token(self, email=None, password=None):
@@ -258,10 +268,13 @@ class Client(object):
             data=data,
             sign=True)
 
+
         # Clear user credentials.
         self._email = self._password = None
-
-        verifier = parse_qs(res.read())['oauth_verifier'][0]
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        verifier = parse_qs(result_data)['oauth_verifier'][0]
         self._token.set_verifier(verifier)
 
     def fetch_access_token(self):
@@ -270,7 +283,10 @@ class Client(object):
         Returns token string.
         """
         res = self.request(url=self.access_token_url, method='POST', sign=True)
-        self._token = oauth.Token.from_string(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        self._token = oauth.Token.from_string(result_data)
         return self._token
 
     def validate_session(self):
@@ -340,7 +356,7 @@ class Client(object):
         given a full url already.
 
         """
-        parse_res = urlparse.urlparse(url)
+        parse_res = urlparse(url)
 
         # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
         # subclass or tuple we can access URL components similarly across
@@ -360,7 +376,10 @@ class Client(object):
 
         """
         res = self.request(self._resolve_url(url), method='GET')
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
@@ -370,7 +389,10 @@ class Client(object):
         
         """
         res = self.request(self._resolve_url(url), method='OPTIONS')
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def put(self, url, data=None):
         """Issue a PUT request to url (either a full URL or API
@@ -379,7 +401,10 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='PUT', data=data,
                            send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def post(self, url, data=None):
         """Issue a POST request to url (either a full URL or API
@@ -388,7 +413,10 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='POST', data=data,
                            send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def delete(self, url):
         """Issue a DELETE request to the URL or API shorthand."""
@@ -396,7 +424,10 @@ class Client(object):
         # Catch no content responses from some delete actions.
         if res.code == 204:
             return json.loads('[]')
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def upload_creative(self, account_id, file_path):
         """Upload a media creative to the account with ID
@@ -420,7 +451,10 @@ class Client(object):
         parts.append('Content-Type: %s' % mimetypes.guess_type(file_path)[0] or 'application/octet-stream')
         parts.append('')
         # TODO: catch errors with opening file.
-        parts.append(open(file_path, 'r').read())
+        result_data = open(file_path, 'r').read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        parts.append(result_data)
 
         parts.append('--' + boundary + '--')
         parts.append('')
@@ -439,8 +473,10 @@ class Client(object):
                 'Unrecognized API path: %s' % self.api_path)
         req = urllib2.Request(url, headers=headers, data=body)
         res = urllib2.urlopen(req)
-
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
 
 def client_from_file(file_path='.ox3rc', env=None):
