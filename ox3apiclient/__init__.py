@@ -5,6 +5,10 @@ from six.moves import http_cookiejar as cookielib
 import mimetypes
 import random
 
+# json module is not supported in versions of Python < 2.6 so try to load the
+# simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
+# support was dropped. You will need to look for v2.1.0 specifically for
+# Python 2.4 support.
 # Python 3.4 support.
 import sys
 major_py_version = sys.version_info[0]
