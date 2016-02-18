@@ -7,7 +7,6 @@ import ox3apiclient
 
 
 class ClientFromFileTestCase(unittest.TestCase):
-
     def test_returns_client(self):
         file_path = os.path.join(os.path.dirname(__file__), 'ox3rctest')
         ox = ox3apiclient.client_from_file(file_path=file_path)
@@ -60,8 +59,8 @@ class ClientFromFileTestCase(unittest.TestCase):
     def test_loads_optional_options(self):
         file_path = os.path.join(os.path.dirname(__file__), 'ox3rctest')
         ox = ox3apiclient.client_from_file(
-                file_path=file_path,
-                env='optional-options')
+            file_path=file_path,
+            env='optional-options')
 
         test_values = [
             'domain',

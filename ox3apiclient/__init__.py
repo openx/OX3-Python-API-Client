@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from six.moves import configparser as ConfigParser
 from six.moves import http_cookiejar as cookielib
 import mimetypes
@@ -11,6 +10,7 @@ import random
 # Python 2.4 support.
 # Python 3.4 support.
 import sys
+
 major_py_version = sys.version_info[0]
 minor_py_version = sys.version_info[1]
 if major_py_version == 2 and minor_py_version < 6:
@@ -21,7 +21,7 @@ else:
 if (major_py_version == 2 and minor_py_version > 4) or major_py_version == 3:
     import oauth2 as oauth
 else:
-    import oauth2_version as oauth 
+    import oauth2_version as oauth
 
 from six.moves import urllib as urllib
 from six.moves.urllib import request as urllib2
@@ -33,7 +33,6 @@ if (major_py_version == 2 and minor_py_version > 5) or major_py_version == 3:
     from six.moves.urllib.parse import parse_qs
 else:
     from cgi import parse_qs
-
 
 from six.moves.urllib.parse import urlparse
 
@@ -49,9 +48,11 @@ ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2, API_PATH_SSO)
 JSON_PATHS = (API_PATH_V2,)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
 
+
 class UnknownAPIFormatError(ValueError):
     """Client is passed an unrecognized API path that it cannot handle."""
     pass
+
 
 class Client(object):
     """Client for making requests to the OX3 API. Maintains
@@ -60,20 +61,20 @@ class Client(object):
     of Python dictionaries, translated to and from the JSON and
     query string encoding the API itself uses.
 
-    """ 
+    """
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
-                    callback_url='oob',
-                    scheme='http',
-                    request_token_url=REQUEST_TOKEN_URL,
-                    access_token_url=ACCESS_TOKEN_URL,
-                    authorization_url=AUTHORIZATION_URL,
-                    api_path=API_PATH_V1,
-                    email=None,
-                    password=None,
-                    http_proxy=None,
-                    https_proxy=None,
-                    headers={}):
+                 callback_url='oob',
+                 scheme='http',
+                 request_token_url=REQUEST_TOKEN_URL,
+                 access_token_url=ACCESS_TOKEN_URL,
+                 authorization_url=AUTHORIZATION_URL,
+                 api_path=API_PATH_V1,
+                 email=None,
+                 password=None,
+                 http_proxy=None,
+                 https_proxy=None,
+                 headers=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -89,18 +90,18 @@ class Client(object):
         http_proxy -- Optional proxy to send HTTP requests through.
         headers -- list of headers to send with the request
         """
-        
+
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         self.callback_url = callback_url
-        self.scheme=scheme
+        self.scheme = scheme
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
-        self.headers = headers
-        
+        self.headers = headers or {}
+
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
             msg = '"{}" is not a recognized API path.'.format(api_path)
@@ -138,7 +139,6 @@ class Client(object):
     def _sign_request(self, req):
         """Utility method to sign a request."""
         parameters = {'oauth_callback': self.callback_url}
-        headers = req.headers
         data = req.data
 
         # Add any (POST) data to the parameters to be signed in the OAuth
@@ -160,7 +160,7 @@ class Client(object):
             oauth.SignatureMethod_HMAC_SHA1(),
             self._consumer,
             self._token)
-        
+
         req.headers.update(oauth_req.to_header())
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
@@ -211,7 +211,6 @@ class Client(object):
         # We'll catch those errors and return the HTTPError object since it can
         # (thankfully) be used just like a Response object. A handler is
         # probably a better approach, but this is quick and works.
-        res = '[]'
         try:
             res = urllib2.urlopen(req)
         except HTTPError as err:
@@ -254,10 +253,10 @@ class Client(object):
             'oauth_token': self._token.key}
 
         res = self.request(
-                url=self.authorization_url,
-                method='POST',
-                data=data,
-                sign=True)
+            url=self.authorization_url,
+            method='POST',
+            data=data,
+            sign=True)
 
         # Clear user credentials.
         self._email = self._password = None
@@ -349,8 +348,8 @@ class Client(object):
 
         # If there is no scheme specified we create a fully qualified URL.
         if not parse_res[0]:
-            url ='%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
-                                    parse_res[2])
+            url = '%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
+                                   parse_res[2])
             if parse_res[4]:
                 url = url + '?' + parse_res[4]
 
@@ -362,7 +361,7 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='GET')
         return json.loads(res.read())
-        
+
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
         URL or API shorthand.
@@ -406,7 +405,7 @@ class Client(object):
         """
         # Thanks to nosklo for his answer on SO:
         # http://stackoverflow.com/a/681182
-        boundary = '-----------------------------' + str(int(random.random()*1e10))
+        boundary = '-----------------------------' + str(int(random.random() * 1e10))
         parts = []
 
         # Set account ID part.
@@ -442,6 +441,7 @@ class Client(object):
         res = urllib2.urlopen(req)
 
         return json.loads(res.read())
+
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.
@@ -507,6 +507,7 @@ def client_from_file(file_path='.ox3rc', env=None):
             pass
 
     return client
+
 
 # The exposed API has moved to using Client instead of OX3APIClient, but create
 # a temporary alias for backwards compatibility.
