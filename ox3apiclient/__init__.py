@@ -165,7 +165,7 @@ class Client(object):
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
 
-    def request(self, url, method='GET', headers={}, data=None, sign=False,
+    def request(self, url, method='GET', headers=None, data=None, sign=False,
                 send_json=False):
         """Helper method to make a (optionally OAuth signed) HTTP request."""
 
