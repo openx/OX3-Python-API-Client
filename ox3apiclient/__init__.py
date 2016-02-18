@@ -5,10 +5,7 @@ import cookielib
 import mimetypes
 import random
 
-# json module is not supported in versions of Python < 2.6 so try to load the
-# simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
-# support was dropped. You will need to look for v2.1.0 specifically for
-# Python 2.4 support.
+# Python 3.4 support.
 import sys
 major_py_version = sys.version_info[0]
 minor_py_version = sys.version_info[1]
@@ -473,8 +470,10 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     client = Client(
         domain=client_params['domain'],
+        realm=client_params.get('realm', None),
         consumer_key=client_params['consumer_key'],
-        consumer_secret=client_params['consumer_secret'])
+        consumer_secret=client_params['consumer_secret'],
+    )
 
     # Load optional parameters.
     optional_params = [

@@ -18,13 +18,11 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain',
-            'realm',
             'consumer_secret',
             'consumer_key']
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret]
 
@@ -38,13 +36,11 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain_dev',
-            'realm_dev',
             'consumer_secret_dev',
             'consumer_key_dev']
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret]
 
@@ -68,7 +64,6 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         test_values = [
             'domain',
-            'realm',
             'consumer_secret',
             'consumer_key',
             'callback_url',
@@ -82,7 +77,6 @@ class ClientFromFileTestCase(unittest.TestCase):
 
         loaded_values = [
             ox.domain,
-            ox.realm,
             ox.consumer_key,
             ox.consumer_secret,
             ox.callback_url,
