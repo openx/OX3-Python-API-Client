@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-
-import ConfigParser
-import cookielib
+import six
+from six.moves import configparser as ConfigParser
+from six.moves import http_cookiejar as cookielib
 import mimetypes
 import random
 
@@ -9,7 +9,9 @@ import random
 # simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
 # support was dropped. You will need to look for v2.1.0 specifically for
 # Python 2.4 support.
+# Python 3.4 support.
 import sys
+
 major_py_version = sys.version_info[0]
 minor_py_version = sys.version_info[1]
 if major_py_version == 2 and minor_py_version < 6:
@@ -17,21 +19,23 @@ if major_py_version == 2 and minor_py_version < 6:
 else:
     import json
 
-if major_py_version == 2 and minor_py_version > 4:
+if (major_py_version == 2 and minor_py_version > 4) or major_py_version == 3:
     import oauth2 as oauth
 else:
-    import oauth2_version as oauth 
+    import oauth2_version as oauth
 
-import urllib
-import urllib2
+from six.moves.urllib import parse  as urllib
+from six.moves.urllib import request as urllib2
+from six.moves.urllib.error import HTTPError
+
 
 # parse_qs is in the urlparse module as of 2.6, but in cgi in earlier versions.
-if major_py_version == 2 and minor_py_version > 5:
-    from urlparse import parse_qs
+if (major_py_version == 2 and minor_py_version > 5) or major_py_version == 3:
+    from six.moves.urllib.parse import parse_qs
 else:
     from cgi import parse_qs
 
-import urlparse
+from six.moves.urllib.parse import urlparse
 
 __version__ = '0.4.0'
 
@@ -45,9 +49,11 @@ ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2, API_PATH_SSO)
 JSON_PATHS = (API_PATH_V2,)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
 
+
 class UnknownAPIFormatError(ValueError):
     """Client is passed an unrecognized API path that it cannot handle."""
     pass
+
 
 class Client(object):
     """Client for making requests to the OX3 API. Maintains
@@ -56,20 +62,20 @@ class Client(object):
     of Python dictionaries, translated to and from the JSON and
     query string encoding the API itself uses.
 
-    """ 
+    """
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
-                    callback_url='oob',
-                    scheme='http',
-                    request_token_url=REQUEST_TOKEN_URL,
-                    access_token_url=ACCESS_TOKEN_URL,
-                    authorization_url=AUTHORIZATION_URL,
-                    api_path=API_PATH_V1,
-                    email=None,
-                    password=None,
-                    http_proxy=None,
-                    https_proxy=None,
-                    headers={}):
+                 callback_url='oob',
+                 scheme='http',
+                 request_token_url=REQUEST_TOKEN_URL,
+                 access_token_url=ACCESS_TOKEN_URL,
+                 authorization_url=AUTHORIZATION_URL,
+                 api_path=API_PATH_V1,
+                 email=None,
+                 password=None,
+                 http_proxy=None,
+                 https_proxy=None,
+                 headers=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -85,18 +91,18 @@ class Client(object):
         http_proxy -- Optional proxy to send HTTP requests through.
         headers -- list of headers to send with the request
         """
-        
+
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         self.callback_url = callback_url
-        self.scheme=scheme
+        self.scheme = scheme
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
         self.api_path = api_path
-        self.headers = headers
-        
+        self.headers = headers or {}
+
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
             msg = '"{}" is not a recognized API path.'.format(api_path)
@@ -134,7 +140,6 @@ class Client(object):
     def _sign_request(self, req):
         """Utility method to sign a request."""
         parameters = {'oauth_callback': self.callback_url}
-        headers = req.headers
         data = req.data
 
         # Add any (POST) data to the parameters to be signed in the OAuth
@@ -156,12 +161,12 @@ class Client(object):
             oauth.SignatureMethod_HMAC_SHA1(),
             self._consumer,
             self._token)
-        
+
         req.headers.update(oauth_req.to_header())
         return \
             urllib2.Request(req.get_full_url(), headers=req.headers, data=data)
 
-    def request(self, url, method='GET', headers={}, data=None, sign=False,
+    def request(self, url, method='GET', headers=None, data=None, sign=False,
                 send_json=False):
         """Helper method to make a (optionally OAuth signed) HTTP request."""
 
@@ -169,7 +174,7 @@ class Client(object):
         # other than None to "data" in order to make the request a POST request,
         # even if there is no data to post.
         if method in ('POST', 'PUT') and not data:
-            data = ''
+            data = six.b('')
 
         headers = headers or self.headers
         # If we're sending a JSON blob, we need to specify the header:
@@ -188,29 +193,34 @@ class Client(object):
 
         # Stringify data.
         if data:
-            # Everything needs to be UTF-8 for urlencode and json:
-            data_utf8 = req.get_data()
-            for i in data_utf8:
-                # Non-string ints don't have encode and can
-                # be handled by json.dumps already:
-                try:
-                    data_utf8[i] = data_utf8[i].encode('utf-8')
-                except AttributeError:
-                    pass
-            if send_json:
-                req.add_data(json.dumps(data_utf8))
+            if major_py_version == 2:
+                # Everything needs to be UTF-8 for urlencode and json:
+                data_utf8 = req.get_data()
+                for i in data_utf8:
+                    # Non-string ints don't have encode and can
+                    # be handled by json.dumps already:
+                    try:
+                        data_utf8[i] = data_utf8[i].encode('utf-8')
+                    except AttributeError:
+                        pass
+                if send_json:
+                    req.add_data(json.dumps(data_utf8))
+                else:
+                    req.add_data(urllib.urlencode(data_utf8))
             else:
-                req.add_data(urllib.urlencode(data_utf8))
+                if send_json:
+                    req.data = json.dumps(req.data).encode('utf-8')
+                else:
+                    req.data = urllib.urlencode(req.data).encode('utf-8')
 
         # In 2.4 and 2.5, urllib2 throws errors for all non 200 status codes.
         # The OpenX API uses 201 create responses and 204 for delete respones.
         # We'll catch those errors and return the HTTPError object since it can
         # (thankfully) be used just like a Response object. A handler is
         # probably a better approach, but this is quick and works.
-        res = '[]'
         try:
             res = urllib2.urlopen(req)
-        except urllib2.HTTPError, err:
+        except HTTPError as err:
             if err.code in [201, 204]:
                 res = err
             else:
@@ -226,7 +236,10 @@ class Client(object):
         Returns token string.
         """
         res = self.request(url=self.request_token_url, method='POST', sign=True)
-        self._token = oauth.Token.from_string(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        self._token = oauth.Token.from_string(result_data)
         return self._token
 
     def authorize_token(self, email=None, password=None):
@@ -250,15 +263,18 @@ class Client(object):
             'oauth_token': self._token.key}
 
         res = self.request(
-                url=self.authorization_url,
-                method='POST',
-                data=data,
-                sign=True)
+            url=self.authorization_url,
+            method='POST',
+            data=data,
+            sign=True)
+
 
         # Clear user credentials.
         self._email = self._password = None
-
-        verifier = parse_qs(res.read())['oauth_verifier'][0]
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        verifier = parse_qs(result_data)['oauth_verifier'][0]
         self._token.set_verifier(verifier)
 
     def fetch_access_token(self):
@@ -267,7 +283,10 @@ class Client(object):
         Returns token string.
         """
         res = self.request(url=self.access_token_url, method='POST', sign=True)
-        self._token = oauth.Token.from_string(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        self._token = oauth.Token.from_string(result_data)
         return self._token
 
     def validate_session(self):
@@ -337,7 +356,7 @@ class Client(object):
         given a full url already.
 
         """
-        parse_res = urlparse.urlparse(url)
+        parse_res = urlparse(url)
 
         # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
         # subclass or tuple we can access URL components similarly across
@@ -345,8 +364,8 @@ class Client(object):
 
         # If there is no scheme specified we create a fully qualified URL.
         if not parse_res[0]:
-            url ='%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
-                                    parse_res[2])
+            url = '%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
+                                   parse_res[2])
             if parse_res[4]:
                 url = url + '?' + parse_res[4]
 
@@ -357,8 +376,11 @@ class Client(object):
 
         """
         res = self.request(self._resolve_url(url), method='GET')
-        return json.loads(res.read())
-        
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
+
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
         URL or API shorthand.
@@ -367,7 +389,10 @@ class Client(object):
         
         """
         res = self.request(self._resolve_url(url), method='OPTIONS')
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def put(self, url, data=None):
         """Issue a PUT request to url (either a full URL or API
@@ -376,7 +401,10 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='PUT', data=data,
                            send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def post(self, url, data=None):
         """Issue a POST request to url (either a full URL or API
@@ -385,7 +413,10 @@ class Client(object):
         """
         res = self.request(self._resolve_url(url), method='POST', data=data,
                            send_json=(self.api_path in JSON_PATHS))
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def delete(self, url):
         """Issue a DELETE request to the URL or API shorthand."""
@@ -393,7 +424,10 @@ class Client(object):
         # Catch no content responses from some delete actions.
         if res.code == 204:
             return json.loads('[]')
-        return json.loads(res.read())
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
     def upload_creative(self, account_id, file_path):
         """Upload a media creative to the account with ID
@@ -402,7 +436,7 @@ class Client(object):
         """
         # Thanks to nosklo for his answer on SO:
         # http://stackoverflow.com/a/681182
-        boundary = '-----------------------------' + str(int(random.random()*1e10))
+        boundary = '-----------------------------' + str(int(random.random() * 1e10))
         parts = []
 
         # Set account ID part.
@@ -417,7 +451,10 @@ class Client(object):
         parts.append('Content-Type: %s' % mimetypes.guess_type(file_path)[0] or 'application/octet-stream')
         parts.append('')
         # TODO: catch errors with opening file.
-        parts.append(open(file_path, 'r').read())
+        result_data = open(file_path, 'r').read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        parts.append(result_data)
 
         parts.append('--' + boundary + '--')
         parts.append('')
@@ -436,8 +473,11 @@ class Client(object):
                 'Unrecognized API path: %s' % self.api_path)
         req = urllib2.Request(url, headers=headers, data=body)
         res = urllib2.urlopen(req)
+        result_data = res.read()
+        if major_py_version == 3:
+            result_data = result_data.decode('utf-8')
+        return json.loads(result_data)
 
-        return json.loads(res.read())
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.
@@ -473,8 +513,10 @@ def client_from_file(file_path='.ox3rc', env=None):
 
     client = Client(
         domain=client_params['domain'],
+        realm=client_params.get('realm', None),
         consumer_key=client_params['consumer_key'],
-        consumer_secret=client_params['consumer_secret'])
+        consumer_secret=client_params['consumer_secret'],
+    )
 
     # Load optional parameters.
     optional_params = [
@@ -501,6 +543,7 @@ def client_from_file(file_path='.ox3rc', env=None):
             pass
 
     return client
+
 
 # The exposed API has moved to using Client instead of OX3APIClient, but create
 # a temporary alias for backwards compatibility.
