@@ -5,6 +5,7 @@ import unittest
 
 import ox3apiclient
 
+
 class ClientFromFileTestCase(unittest.TestCase):
 
     def test_returns_client(self):

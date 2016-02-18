@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import ConfigParser
-import cookielib
+from six.moves import configparser as ConfigParser
+from six.moves import http_cookiejar as cookielib
 import mimetypes
 import random
 
@@ -14,21 +14,24 @@ if major_py_version == 2 and minor_py_version < 6:
 else:
     import json
 
-if major_py_version == 2 and minor_py_version > 4:
+if (major_py_version == 2 and minor_py_version > 4) or major_py_version == 3:
     import oauth2 as oauth
 else:
     import oauth2_version as oauth 
 
-import urllib
-import urllib2
+from six.moves import urllib as urllib
+from six.moves.urllib import request as urllib2
+from six.moves.urllib.error import HTTPError
+
 
 # parse_qs is in the urlparse module as of 2.6, but in cgi in earlier versions.
-if major_py_version == 2 and minor_py_version > 5:
-    from urlparse import parse_qs
+if (major_py_version == 2 and minor_py_version > 5) or major_py_version == 3:
+    from six.moves.urllib.parse import parse_qs
 else:
     from cgi import parse_qs
 
-import urlparse
+
+from six.moves.urllib.parse import urlparse
 
 __version__ = '0.4.0'
 
@@ -207,7 +210,7 @@ class Client(object):
         res = '[]'
         try:
             res = urllib2.urlopen(req)
-        except urllib2.HTTPError, err:
+        except HTTPError as err:
             if err.code in [201, 204]:
                 res = err
             else:
