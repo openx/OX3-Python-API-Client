@@ -6,29 +6,11 @@ import logging
 import mimetypes
 from pprint import pformat
 import random
-
-# json module is not supported in versions of Python < 2.6 so try to load the
-# simplejson module instead. Note that as of simplejson v2.1.1, Python 2.4
-# support was dropped. You will need to look for v2.1.0 specifically for
-# Python 2.4 support.
-import sys
-major_py_version = sys.version_info[0]
-minor_py_version = sys.version_info[1]
-if major_py_version == 2 and minor_py_version < 6:
-    import simplejson as json
-else:
-    import json
+import json
+from urlparse import parse_qs, urlparse
 
 import requests
 from requests_oauthlib import OAuth1
-
-# parse_qs is in the urlparse module as of 2.6, but in cgi in earlier versions.
-if major_py_version == 2 and minor_py_version > 5:
-    from urlparse import parse_qs
-else:
-    from cgi import parse_qs
-
-from urlparse import urlparse
 
 __version__ = '0.5.0'
 
@@ -62,20 +44,19 @@ class Client(object):
 
     """
 
-
     def __init__(self, domain, realm, consumer_key, consumer_secret,
-                    callback_url='oob',
-                    scheme='http',
-                    request_token_url=REQUEST_TOKEN_URL,
-                    access_token_url=ACCESS_TOKEN_URL,
-                    authorization_url=AUTHORIZATION_URL,
-                    api_path=API_PATH_V1,
-                    email=None,
-                    password=None,
-                    http_proxy=None,
-                    https_proxy=None,
-                    headers=None,
-                    timeout=None):
+                 callback_url='oob',
+                 scheme='http',
+                 request_token_url=REQUEST_TOKEN_URL,
+                 access_token_url=ACCESS_TOKEN_URL,
+                 authorization_url=AUTHORIZATION_URL,
+                 api_path=API_PATH_V1,
+                 email=None,
+                 password=None,
+                 http_proxy=None,
+                 https_proxy=None,
+                 headers=None,
+                 timeout=None):
         """
 
         domain -- Your UI domain. The API is accessed off this domain.
@@ -97,7 +78,7 @@ class Client(object):
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
         self.callback_url = callback_url
-        self.scheme=scheme
+        self.scheme = scheme
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
         self.authorization_url = authorization_url
@@ -129,7 +110,6 @@ class Client(object):
 
         self.logger = logging.getLogger(__name__)
 
-
     def log_request(self, response):
         self.logger.debug('====={0:=<45}'.format('OX3 api call started'))
         self.logger.debug("%s %s" % (response.request.method, response.request.url))
@@ -144,10 +124,9 @@ class Client(object):
         self.logger.debug('====={0:=<45}'.format('OX3 api call response body'))
         try:
             self.logger.debug(pformat(json.loads(response.content)))
-        except:
+        except ValueError:
             self.logger.debug("%s" % response.content)
         self.logger.debug('====={0:=<45}'.format('OX3 api call finished'))
-
 
     def request(self, url, method='GET', headers=None, data=None, sign=False,
                 send_json=False):
@@ -264,7 +243,6 @@ class Client(object):
             rest={})
         self._session.cookies.set_cookie(cookie)
 
-
         # v2 doesn't need this extra step, just the cookie:
         if self.api_path == API_PATH_V1:
             response = self._session.put(url=self._resolve_url('/a/session/validate'), timeout=self.timeout)
@@ -321,12 +299,22 @@ class Client(object):
 
         # If there is no scheme specified we create a fully qualified URL.
         if not parse_res[0]:
-            url ='%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
-                                    parse_res[2])
+            url = '%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
+                                   parse_res[2])
             if parse_res[4]:
                 url = url + '?' + parse_res[4]
 
         return url
+
+    def _response_value(self, response):
+        """ Utility method. Returns decoded json. If the response content cannot be decoded, then
+        the content is returned.
+
+        """
+        try:
+            return response.json()
+        except ValueError:
+            return response.content
 
     def get(self, url):
         """Issue a GET request to the given URL or API shorthand
@@ -335,10 +323,7 @@ class Client(object):
         response = self._session.get(self._resolve_url(url), timeout=self.timeout)
         self.log_request(response)
         response.raise_for_status()
-        try:
-            return response.json()
-        except:
-            return response.content
+        return self._response_value(response)
 
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
@@ -350,10 +335,7 @@ class Client(object):
         response = self._session.options(self._resolve_url(url), timeout=self.timeout)
         self.log_request(response)
         response.raise_for_status()
-        try:
-            return response.json()
-        except:
-            return response.content
+        return self._response_value(response)
 
     def put(self, url, data=None):
         """Issue a PUT request to url (either a full URL or API
@@ -366,10 +348,7 @@ class Client(object):
             response = self._session.put(self._resolve_url(url), data=data, timeout=self.timeout)
         self.log_request(response)
         response.raise_for_status()
-        try:
-            return response.json()
-        except:
-            return response.content
+        return self._response_value(response)
 
     def post(self, url, data=None):
         """Issue a POST request to url (either a full URL or API
@@ -382,10 +361,7 @@ class Client(object):
             response = self._session.post(self._resolve_url(url), data=data, timeout=self.timeout)
         self.log_request(response)
         response.raise_for_status()
-        try:
-            return response.json()
-        except:
-            return response.content
+        return self._response_value(response)
 
     def delete(self, url):
         """Issue a DELETE request to the URL or API shorthand."""
@@ -395,10 +371,7 @@ class Client(object):
         # Catch no content responses from some delete actions.
         if response.status_code == 204:
             return []
-        try:
-            return response.json()
-        except:
-            return response.content
+        return self._response_value(response)
 
     def upload_creative(self, account_id, file_path):
         """Upload a media creative to the account with ID
@@ -441,10 +414,8 @@ class Client(object):
         response = self._session.get(url, headers=headers, data=body, timeout=self.timeout)
         self.log_request(response)
         response.raise_for_status()
-        try:
-            return response.json()
-        except:
-            return response.content
+        return self._response_value(response)
+
 
 def client_from_file(file_path='.ox3rc', env=None):
     """Return an instance of ox3apiclient.Client with data from file_path.

@@ -3,7 +3,7 @@
 A small class to help connect to the OpenX Enterprise API. As of version 0.5.0 it  uses
 [requests_oauthlib](https://github.com/requests/requests-oauthlib) instead of oauth2.
 
-It currently supports Python 2.4 - 2.7, with 3.x support coming in the future.
+It currently supports Python 2.6 - 2.7, with 3.x support coming in the future.
 
 As of version 0.4.0, ox3apiclient supports API v2. If your instance is v2,
 set the api_path option to "/ox/4.0".
@@ -33,7 +33,7 @@ order = {
     'status': 'Active',
     'name': 'OX3APIClient Object Creation Test',
     'account_uid': accounts['objects'][0]['account_uid'],
-    'start_date': '2015-06-01 00:00:00'}
+    'start_date': '2016-06-01 00:00:00'}
 
 new_order = ox.post('/order', data=order)
 
@@ -50,17 +50,12 @@ ox3apiclient is currently unavailable at [PyPi](http://pypi.python.org/pypi) so 
 ````
 $ git clone https://github.com/openx/OX3-Python-API-Client.git
 ````
-Install requests and requests_oauthlib from [PyPi](http://pypi.python.org/pypi) with [pip](http://www.pip-installer.org/en/latest/index.html)
-````
-$ pip install requests requests_oauthlib
-````
 
-Note that Python 2.4 and 2.5 support requires simplejson. You will need
-simplejson 2.1.0 specifically for Python 2.4. You can install this version with:
+Install the downloaded library:
 ````
-$ pip install simplejson==2.1.0
+python setup.py install
 ````
-
+this will install the current dependencies.
 
 ## Authentication
 
