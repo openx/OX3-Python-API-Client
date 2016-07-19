@@ -1,3 +1,9 @@
+0.5.0 / 2013-06-09
+==================
+ * Replaced: urllib2 with requests package
+ * Replaced: oauth2 with requests_oauthlib package
+ * Added: optional timeout parameter
+
 0.4.0 / 2013-07-23
 ==================
  * Added handling for API v2

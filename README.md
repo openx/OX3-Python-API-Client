@@ -1,32 +1,43 @@
 # ox3apiclient
 
-A small class to help connect to the OpenX Enterprise API. While it uses [oauth2](https://github.com/simplegeo/python-oauth2),
-it does not use [httplib2](http://code.google.com/p/httplib2/) as the transport due to issues with headers created by
-httplib2. Instead it uses urllib2 as the HTTP transport.
+A small class to help connect to the OpenX Enterprise API. As of version 0.5.0 it  uses
+[requests_oauthlib](https://github.com/requests/requests-oauthlib) instead of oauth2.
 
-It currently supports Python 2.4 - 2.7, with 3.x support comming in the future.
+It currently supports Python 2.4 - 2.7, with 3.x support coming in the future.
 
 As of version 0.4.0, ox3apiclient supports API v2. If your instance is v2,
 set the api_path option to "/ox/4.0".
 
-Basic usage:
+As of version 0.5.0 the client.request method returns a requests.Response object instead of
+urllib2.Response and throws a requests.exceptions.HTTPError instead of urllib2.HTTPError.
+In addition debugging is now available via the standard python logging facility.
+
+See the [requests documentation](http://docs.python-requests.org/en/latest/) for details.
+
+Basic usage with debugging enabled:
 
 ````python
 import ox3apiclient
+import logging
 
 ox = ox3apiclient.client_from_file().logon()
 
-account_ids = ox.get('/a/account')
+ox.logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ox.logger.addHandler(ch)
+
+accounts = ox.get('/account')
 
 order = {
     'status': 'Active',
     'name': 'OX3APIClient Object Creation Test',
-    'account_id': account_ids[0],
-    'start_date': '2012-08-22 00:00:00'}
+    'account_uid': accounts['objects'][0]['account_uid'],
+    'start_date': '2015-06-01 00:00:00'}
 
-new_order = ox.post('/a/order', data=order)
+new_order = ox.post('/order', data=order)
 
-ox.delete('/a/order/%s' % new_order['id'])
+ox.delete('/order/%s' % new_order['uid'])
 
 ox.logoff()
 ````
@@ -34,14 +45,14 @@ ox.logoff()
 
 ## Installation
 
-Install from [PyPi](http://pypi.python.org/pypi) with [pip](http://www.pip-installer.org/en/latest/index.html)
+ox3apiclient is currently unavailable at [PyPi](http://pypi.python.org/pypi) so just clone our git repo:
 
 ````
-$ pip install ox3apiclient
+$ git clone https://github.com/openx/OX3-Python-API-Client.git
 ````
-This should install the [oauth2](https://github.com/simplegeo/python-oauth2) dependency, but you can manually install if needed.
+Install requests and requests_oauthlib from [PyPi](http://pypi.python.org/pypi) with [pip](http://www.pip-installer.org/en/latest/index.html)
 ````
-$ pip install oauth2
+$ pip install requests requests_oauthlib
 ````
 
 Note that Python 2.4 and 2.5 support requires simplejson. You will need
