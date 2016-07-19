@@ -39,7 +39,7 @@ API_PATH_V1 = '/ox/3.0'
 API_PATH_V2 = '/ox/4.0'
 API_PATH_SSO = '/api'
 ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2, API_PATH_SSO)
-JSON_PATHS = (API_PATH_V2)
+JSON_PATHS = (API_PATH_V2,)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
 
 
@@ -60,7 +60,7 @@ class Client(object):
     of Python dictionaries, translated to and from the JSON and
     query string encoding the API itself uses.
 
-    """ 
+    """
 
 
     def __init__(self, domain, realm, consumer_key, consumer_secret,
@@ -92,7 +92,7 @@ class Client(object):
         headers -- list of headers to send with the request
         timeout -- http request timeout in seconds.
         """
-        
+
         self.domain = domain
         self.consumer_key = consumer_key
         self.consumer_secret = consumer_secret
@@ -103,7 +103,7 @@ class Client(object):
         self.authorization_url = authorization_url
         self.api_path = api_path
         self.timeout = timeout
-        
+
         # Validate API path:
         if api_path not in ACCEPTABLE_PATHS:
             msg = '"{}" is not a recognized API path.'.format(api_path)
@@ -339,13 +339,13 @@ class Client(object):
             return response.json()
         except:
             return response.content
-        
+
     def options(self, url):
         """Send a request with HTTP method OPTIONS to the given
         URL or API shorthand.
-        
+
         OX3 v2 uses this method for showing help information.
-        
+
         """
         response = self._session.options(self._resolve_url(url), timeout=self.timeout)
         self.log_request(response)
@@ -389,7 +389,7 @@ class Client(object):
 
     def delete(self, url):
         """Issue a DELETE request to the URL or API shorthand."""
-        response = requests.delete(self._resolve_url(url))
+        response = self._session.delete(self._resolve_url(url))
         self.log_request(response)
         response.raise_for_status()
         # Catch no content responses from some delete actions.
