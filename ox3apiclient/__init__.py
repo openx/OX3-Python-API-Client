@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
-
-import ConfigParser
-import cookielib
+import six
+from six.moves import configparser as ConfigParser
+from six.moves import http_cookiejar as cookielib
 import logging
 import mimetypes
 from pprint import pformat
 import random
 import json
-from urlparse import parse_qs, urlparse
+from six.moves.urllib.parse import parse_qs, urlparse
 
 import requests
 from requests_oauthlib import OAuth1
+
 
 __version__ = '0.5.0'
 
@@ -123,9 +124,9 @@ class Client(object):
             self.logger.debug("%s: %s" % (k, v))
         self.logger.debug('====={0:=<45}'.format('OX3 api call response body'))
         try:
-            self.logger.debug(pformat(json.loads(response.content)))
+            self.logger.debug(pformat(json.loads(response.text)))
         except ValueError:
-            self.logger.debug("%s" % response.content)
+            self.logger.debug("%s" % response.text)
         self.logger.debug('====={0:=<45}'.format('OX3 api call finished'))
 
     def request(self, url, method='GET', headers=None, data=None, sign=False,
@@ -164,8 +165,8 @@ class Client(object):
         response = self._session.post(url=self.request_token_url, auth=oauth, timeout=self.timeout)
         self.log_request(response)
         if response.status_code != 200:
-            raise OAuthException("OAuth token request failed (%s) %s" % (response.status_code, response.content))
-        credentials = parse_qs(response.content)
+            raise OAuthException("OAuth token request failed (%s) %s" % (response.status_code, response.text))
+        credentials = parse_qs(response.text)
         self._token = {'key': credentials['oauth_token'][0],
                        'secret': credentials['oauth_token_secret'][0]}
         return self._token
@@ -193,13 +194,13 @@ class Client(object):
         response = self._session.post(url=self.authorization_url, data=data, timeout=self.timeout)
         self.log_request(response)
         if response.status_code != 200:
-            raise OAuthException("OAuth login failed (%s) %s" % (response.status_code, response.content))
+            raise OAuthException("OAuth login failed (%s) %s" % (response.status_code, response.text))
 
         # Clear user credentials.
         self._email = self._password = None
         # set token verifier
-        self._token['verifier'] = parse_qs(response.content)['oauth_verifier'][0]
-
+        self._token['verifier'] = parse_qs(response.text)['oauth_verifier'][0]
+          
     def fetch_access_token(self):
         """Helper method to fetch and set access token.
 
@@ -215,8 +216,9 @@ class Client(object):
         response = self._session.post(url=self.access_token_url, auth=oauth, timeout=self.timeout)
         self.log_request(response)
         if response.status_code != 200:
-            raise OAuthException("OAuth token verification failed (%s) %s" % (response.status_code, response.content))
-        self._token = parse_qs(response.content)['oauth_token'][0]
+            raise OAuthException("OAuth token verification failed (%s) %s" % (response.status_code, response.text))
+        self._token = parse_qs(response.text)['oauth_token'][0]
+
         return self._token
 
     def validate_session(self):
@@ -247,7 +249,7 @@ class Client(object):
         if self.api_path == API_PATH_V1:
             response = self._session.put(url=self._resolve_url('/a/session/validate'), timeout=self.timeout)
             self.log_request(response)
-            return response.content
+            return response.text
 
     def logon(self, email=None, password=None):
         """Returns self after authentication.
@@ -279,7 +281,7 @@ class Client(object):
 
             response = self._session.delete(url=self.access_token_url, auth=oauth, timeout=self.timeout)
             if response.status_code != 204:
-                raise OAuthException("OAuth token deletion failed (%s) %s" % (response.status_code, response.content))
+                raise OAuthException("OAuth token deletion failed (%s) %s" % (response.status_code, response.text))
         else:
             raise UnknownAPIFormatError(
                 'Unrecognized API path: %s' % self.api_path)
@@ -307,14 +309,14 @@ class Client(object):
         return url
 
     def _response_value(self, response):
-        """ Utility method. Returns decoded json. If the response content cannot be decoded, then
+        """ Utility method. Returns decoded json. If the response.text cannot be decoded, then
         the content is returned.
 
         """
         try:
             return response.json()
         except ValueError:
-            return response.content
+            return response.text
 
     def get(self, url):
         """Issue a GET request to the given URL or API shorthand
@@ -395,7 +397,9 @@ class Client(object):
         parts.append('Content-Type: %s' % mimetypes.guess_type(file_path)[0] or 'application/octet-stream')
         parts.append('')
         # TODO: catch errors with opening file.
-        parts.append(open(file_path, 'r').read())
+        # do this within a context manager to avoid unclosed file
+        with open(file_path, 'r') as f:
+          parts.append(f.read())
 
         parts.append('--' + boundary + '--')
         parts.append('')
@@ -485,3 +489,4 @@ def client_from_file(file_path='.ox3rc', env=None):
 # The exposed API has moved to using Client instead of OX3APIClient, but create
 # a temporary alias for backwards compatibility.
 OX3APIClient = Client
+
