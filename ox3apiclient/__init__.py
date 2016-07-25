@@ -182,7 +182,6 @@ class Client(object):
             password = self._password
 
         if not email or not password:
-            self._email = self._password = None
             raise Exception('Missing email or password')
 
         data = {
@@ -195,8 +194,6 @@ class Client(object):
         if response.status_code != 200:
             raise OAuthException("OAuth login failed (%s) %s" % (response.status_code, response.content))
 
-        # Clear user credentials.
-        self._email = self._password = None
         # set token verifier
         self._token['verifier'] = parse_qs(response.content)['oauth_verifier'][0]
 
