@@ -1,2 +1,6 @@
 .ox3rc
 *.pyc
+ox3apiclient.egg-info/
+landing/*
+build/*
+dist/*

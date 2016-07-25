@@ -200,7 +200,7 @@ class Client(object):
         self._email = self._password = None
         # set token verifier
         self._token['verifier'] = parse_qs(response.text)['oauth_verifier'][0]
-          
+
     def fetch_access_token(self):
         """Helper method to fetch and set access token.
 
@@ -489,4 +489,3 @@ def client_from_file(file_path='.ox3rc', env=None):
 # The exposed API has moved to using Client instead of OX3APIClient, but create
 # a temporary alias for backwards compatibility.
 OX3APIClient = Client
-

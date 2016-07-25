@@ -4,7 +4,6 @@ import unittest
 from mock import Mock, patch
 import os
 
-
 class TestClient(unittest.TestCase):
     ex_resp = Mock()
     ex_resp.request.headers = {'rheader1': 'rvalue1',
@@ -32,27 +31,25 @@ class TestClient(unittest.TestCase):
         self.api_path_v2 = '/ox/4.0'
         self.url = 'https://www.example.com'
 
-        with patch('ox3apiclient.requests.Session') as\
-        self.mock_requests_session,\
-        patch('ox3apiclient.Client.log_request') as\
-        self.mock_client_log_request:
-          self.mock_requests_session.return_value.get.return_value = self.ex_resp
-          self.mock_requests_session.return_value.post.return_value = self.ex_resp
-          self.mock_requests_session.return_value.put.return_value = self.ex_resp
-          self.mock_requests_session.return_value.options.return_value = self.ex_resp
-          self.mock_requests_session.return_value.delete.return_value = self.ex_resp
+        with patch('ox3apiclient.requests.Session') as self.mock_requests_session:
+            with patch('ox3apiclient.Client.log_request') as self.mock_client_log_request:
+                self.mock_requests_session.return_value.get.return_value = self.ex_resp
+                self.mock_requests_session.return_value.post.return_value = self.ex_resp
+                self.mock_requests_session.return_value.put.return_value = self.ex_resp
+                self.mock_requests_session.return_value.options.return_value = self.ex_resp
+                self.mock_requests_session.return_value.delete.return_value = self.ex_resp
 
-          self.mock_client_log_request.return_value = None
-          self.client = ox3apiclient.Client(
-              email=self.email,
-              password=self.password,
-              domain=self.domain,
-              realm=self.realm,
-              consumer_key=self.consumer_key,
-              consumer_secret=self.consumer_secret,
-              request_token_url=self.request_token_url,
-              access_token_url=self.access_token_url,
-              authorization_url=self.authorization_url)
+                self.mock_client_log_request.return_value = None
+                self.client = ox3apiclient.Client(
+                      email=self.email,
+                      password=self.password,
+                      domain=self.domain,
+                      realm=self.realm,
+                      consumer_key=self.consumer_key,
+                      consumer_secret=self.consumer_secret,
+                      request_token_url=self.request_token_url,
+                      access_token_url=self.access_token_url,
+                      authorization_url=self.authorization_url)
 
     def test_init(self):
         pass
@@ -126,18 +123,16 @@ class TestClient(unittest.TestCase):
                          'oauth_callback_confirmed=true')
 
     def test_logon(self):
-        with patch('ox3apiclient.Client.fetch_request_token') as\
-        mock_fetch_request_token,\
-        patch('ox3apiclient.Client.authorize_token') as mock_authorize_token,\
-        patch('ox3apiclient.Client.fetch_access_token') as\
-        mock_fetch_access_token,\
-        patch('ox3apiclient.Client.validate_session') as mock_validate_session:
-            mock_fetch_request_token.return_value = None
-            mock_authorize_token.return_value = None
-            mock_fetch_access_token.return_value = None
-            mock_validate_session.return_value = None
-            ret_val = self.client.logon()
-            self.assertTrue(isinstance(ret_val, ox3apiclient.Client))
+        with patch('ox3apiclient.Client.fetch_request_token') as mock_fetch_request_token:
+            with patch('ox3apiclient.Client.authorize_token') as mock_authorize_token:
+                with patch('ox3apiclient.Client.fetch_access_token') as mock_fetch_access_token:
+                    with patch('ox3apiclient.Client.validate_session') as mock_validate_session:
+                        mock_fetch_request_token.return_value = None
+                        mock_authorize_token.return_value = None
+                        mock_fetch_access_token.return_value = None
+                        mock_validate_session.return_value = None
+                        ret_val = self.client.logon()
+                        self.assertTrue(isinstance(ret_val, ox3apiclient.Client))
 
     def test_logoff(self):
         ret_val = self.client.logoff()
