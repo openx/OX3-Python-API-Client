@@ -1,3 +1,10 @@
+0.5.0 / 2015-07-26
+==================
+ * Replaced: urllib2 with requests package
+ * Replaced: oauth2 with requests_oauthlib package
+ * Added: optional timeout parameter
+ * Removed: support for Python 2.4/2.5
+
 0.4.0 / 2013-07-23
 ==================
  * Added handling for API v2
