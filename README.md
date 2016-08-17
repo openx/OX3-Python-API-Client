@@ -45,17 +45,7 @@ ox.logoff()
 
 ## Installation
 
-From Pypi
-
-The last released version (from the master branch) is available at [PyPi](http://pypi.python.org/pypi)
-````
-$ pip install ox3apiclient
-````
-
-
-From Github:
-
-Just clone our git repo:
+ox3apiclient is currently unavailable at [PyPi](http://pypi.python.org/pypi) so just clone our git repo:
 
 ````
 $ git clone https://github.com/openx/OX3-Python-API-Client.git
