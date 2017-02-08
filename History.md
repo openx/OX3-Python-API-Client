@@ -1,4 +1,4 @@
-0.5.1 / 2013-08-11
+0.5.2 / 2017-02-02
 ==================
  * Fixed: packaging for Pypi
  * Added: license information
