@@ -1,3 +1,8 @@
+0.5.2 / 2017-02-02
+==================
+ * Fixed: packaging for Pypi
+ * Added: license information
+
 0.5.0 / 2015-07-26
 ==================
  * Replaced: urllib2 with requests package

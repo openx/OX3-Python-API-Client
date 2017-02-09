@@ -12,7 +12,7 @@ from urlparse import parse_qs, urlparse
 import requests
 from requests_oauthlib import OAuth1
 
-__version__ = '0.5.0'
+__version__ = '0.5.2'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
