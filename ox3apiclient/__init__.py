@@ -370,45 +370,21 @@ class Client(object):
             return []
         return self._response_value(response)
 
-    def upload_creative(self, account_id, file_path):
+    def upload_creative(self, account_uid, file_path):
         """Upload a media creative to the account with ID
         account_id from the local file_path.
 
         """
-        # Thanks to nosklo for his answer on SO:
-        # http://stackoverflow.com/a/681182
-        boundary = '-----------------------------' + str(int(random.random()*1e10))
-        parts = []
-
-        # Set account ID part.
-        parts.append('--' + boundary)
-        parts.append('Content-Disposition: form-data; name="account_id"')
-        parts.append('')
-        parts.append(str(account_id))
-
-        # Set creative contents part.
-        parts.append('--' + boundary)
-        parts.append('Content-Disposition: form-data; name="userfile"; filename="%s"' % file_path)
-        parts.append('Content-Type: %s' % mimetypes.guess_type(file_path)[0] or 'application/octet-stream')
-        parts.append('')
-        # TODO: catch errors with opening file.
-        parts.append(open(file_path, 'r').read())
-
-        parts.append('--' + boundary + '--')
-        parts.append('')
-
-        body = '\r\n'.join(parts)
-
-        # TODO: Catch errors in attempt to upload.
-        headers = {'content-type': 'multipart/form-data; boundary=' + boundary}
+        mimetype = mimetypes.guess_type(file_path)[0] or 'application/octet-stream'
+        data = dict(account_uid=str(account_uid))
+        files = dict(userfile=(file_path, open(file_path, 'rb'), mimetype))
         if self.api_path == API_PATH_V1:
             url = self._resolve_url('/a/creative/uploadcreative')
         elif self.api_path == API_PATH_V2:
-            url = self._resolve_url('/creative/uploadcreative')
+            url = self._resolve_url('/creative/upload_creative')
         else:
-            raise UnknownAPIFormatError(
-                'Unrecognized API path: %s' % self.api_path)
-        response = self._session.get(url, headers=headers, data=body, timeout=self.timeout)
+            raise UnknownAPIFormatError('Unrecognized API path: %s' % self.api_path)
+        response = self._session.post(url, files=files, data=data)
         self.log_request(response)
         response.raise_for_status()
         return self._response_value(response)
