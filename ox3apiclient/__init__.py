@@ -313,11 +313,11 @@ class Client(object):
         except ValueError:
             return response.content
 
-    def get(self, url):
+    def get(self, url, params=None):
         """Issue a GET request to the given URL or API shorthand
 
         """
-        response = self._session.get(self._resolve_url(url), timeout=self.timeout)
+        response = self._session.get(self._resolve_url(url), params=params, timeout=self.timeout)
         self.log_request(response)
         response.raise_for_status()
         return self._response_value(response)
