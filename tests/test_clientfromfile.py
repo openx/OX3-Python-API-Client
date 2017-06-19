@@ -90,9 +90,3 @@ class ClientFromFileTestCase(unittest.TestCase):
         loaded_values.sort()
 
         self.assertEqual(loaded_values, test_values)
-
-
-if __name__ == '__main__':
-    # To run these tests. Install nose (pip install nose)
-    # and run nosetests -sxv tests/  from the root dir
-    unittest.main()

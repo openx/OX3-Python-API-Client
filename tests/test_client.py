@@ -183,9 +183,3 @@ class TestClient(unittest.TestCase):
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
-
-
-if __name__ == '__main__':
-    # To run these tests. Install nose (pip install nose)
-    # and run nosetests -sxv tests/  from the root dir
-    unittest.main()

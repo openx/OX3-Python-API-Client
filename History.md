@@ -1,3 +1,8 @@
+0.6.0 / 2017-06-19
+==================
+ * Added: Python 3 compatibility
+ * Fixed: Non running tests
+
 0.5.2 / 2017-02-02
 ==================
  * Fixed: packaging for Pypi

@@ -121,3 +121,20 @@ ox = ox3apiclient.Client(
 
 ox.logon(email, password)
 ````
+
+    # To run these tests. Install nose (pip install nose)
+    # and run nosetests -sxv tests/  from the root dir
+
+## Tests
+
+Install nose
+
+````bash
+pip install nose
+```` 
+ 
+ and run the following command line from the root:
+
+````bash
+nosetests -sxv tests/
+````
