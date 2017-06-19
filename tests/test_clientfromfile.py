@@ -93,5 +93,6 @@ class ClientFromFileTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # run this using python -m unittest -v tests from the root dir
+    # To run these tests. Install nose (pip install nose)
+    # and run nosetests -sxv tests/  from the root dir
     unittest.main()
