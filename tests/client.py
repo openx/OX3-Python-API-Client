@@ -3,7 +3,6 @@ import ox3apiclient
 import unittest
 from mock import Mock, patch
 import os
-from contextlib import nested
 
 
 class TestClient(unittest.TestCase):
@@ -12,7 +11,7 @@ class TestClient(unittest.TestCase):
                                'rheader2': 'rvalue2'}
     ex_resp.headers = {'header1': 'value1',
                        'header2': 'value2'}
-    ex_resp.content = 'oauth_token=key&oauth_token_secret=secret&oauth_callback_confirmed=true'
+    ex_resp.text = 'oauth_token=key&oauth_token_secret=secret&oauth_callback_confirmed=true'
     ex_resp.json.return_value = {'key1': 'value1',
                                  'key2': 'value2',
                                  'key3': 'value3'}
@@ -33,37 +32,25 @@ class TestClient(unittest.TestCase):
         self.api_path_v2 = '/ox/4.0'
         self.url = 'https://www.example.com'
 
-        with nested(
-            patch('ox3apiclient.requests.Session'),
-            patch('ox3apiclient.Client.log_request')
-        ) as (self.mock_requests_session, self.mock_client_log_request):
+        with patch('ox3apiclient.requests.Session') as self.mock_requests_session:
+            with patch('ox3apiclient.Client.log_request') as self.mock_client_log_request:
+                self.mock_requests_session.return_value.get.return_value = self.ex_resp
+                self.mock_requests_session.return_value.post.return_value = self.ex_resp
+                self.mock_requests_session.return_value.put.return_value = self.ex_resp
+                self.mock_requests_session.return_value.options.return_value = self.ex_resp
+                self.mock_requests_session.return_value.delete.return_value = self.ex_resp
 
-            self.mock_requests_session.return_value.get.return_value = self.ex_resp
-            self.mock_requests_session.return_value.post.return_value = self.ex_resp
-            self.mock_requests_session.return_value.put.return_value = self.ex_resp
-            self.mock_requests_session.return_value.options.return_value = self.ex_resp
-            self.mock_requests_session.return_value.delete.return_value = self.ex_resp
-
-            self.mock_client_log_request.return_value = None
-            self.client = ox3apiclient.Client(
-                email=self.email,
-                password=self.password,
-                domain=self.domain,
-                realm=self.realm,
-                consumer_key=self.consumer_key,
-                consumer_secret=self.consumer_secret,
-                request_token_url=self.request_token_url,
-                access_token_url=self.access_token_url,
-                authorization_url=self.authorization_url)
-
-    def test_init(self):
-        pass
-
-    def test_log_request(self):
-        pass
-
-    def test_request(self):
-        pass
+                self.mock_client_log_request.return_value = None
+                self.client = ox3apiclient.Client(
+                    email=self.email,
+                    password=self.password,
+                    domain=self.domain,
+                    realm=self.realm,
+                    consumer_key=self.consumer_key,
+                    consumer_secret=self.consumer_secret,
+                    request_token_url=self.request_token_url,
+                    access_token_url=self.access_token_url,
+                    authorization_url=self.authorization_url)
 
     def test_fetch_request_token(self):
         # Authorized Case
@@ -83,7 +70,7 @@ class TestClient(unittest.TestCase):
                              mock_fetch_request_token):
         # mock the post response, and do some setup
         r = Mock()
-        r.content = 'oauth_verifier=verifier'
+        r.text = 'oauth_verifier=verifier'
         self.mock_requests_session.return_value.post.return_value = r
         mock_client_log_request.return_value = None
         mock_fetch_request_token.return_value = {'key': 'key',
@@ -106,7 +93,7 @@ class TestClient(unittest.TestCase):
         # mock the OAuth1 and session post response
         mock_oauth1.return_value = 'oauth'
         r = Mock()
-        r.content = 'oauth_token=key'
+        r.text = 'oauth_token=key'
         self.mock_requests_session.return_value.post.return_value = r
         self.client._token = {'key': 'key',
                               'secret': 'secret',
@@ -128,26 +115,20 @@ class TestClient(unittest.TestCase):
                          'oauth_callback_confirmed=true')
 
     def test_logon(self):
-        with nested(
-            patch('ox3apiclient.Client.fetch_request_token'),
-            patch('ox3apiclient.Client.authorize_token'),
-            patch('ox3apiclient.Client.fetch_access_token'),
-            patch('ox3apiclient.Client.validate_session'),
-        ) as (mock_fetch_request_token, mock_authorize_token,
-              mock_fetch_access_token, mock_validate_session):
-            mock_fetch_request_token.return_value = None
-            mock_authorize_token.return_value = None
-            mock_fetch_access_token.return_value = None
-            mock_validate_session.return_value = None
-            ret_val = self.client.logon()
-            self.assertTrue(isinstance(ret_val, ox3apiclient.Client))
+        with patch('ox3apiclient.Client.fetch_request_token') as mock_fetch_request_token:
+            with patch('ox3apiclient.Client.authorize_token') as mock_authorize_token:
+                with patch('ox3apiclient.Client.fetch_access_token') as mock_fetch_access_token:
+                    with patch('ox3apiclient.Client.validate_session') as mock_validate_session:
+                        mock_fetch_request_token.return_value = None
+                        mock_authorize_token.return_value = None
+                        mock_fetch_access_token.return_value = None
+                        mock_validate_session.return_value = None
+                        ret_val = self.client.logon()
+                        self.assertTrue(isinstance(ret_val, ox3apiclient.Client))
 
     def test_logoff(self):
         ret_val = self.client.logoff()
         self.assertTrue(isinstance(ret_val, ox3apiclient.Client))
-
-    # def test_resolve_url(self):
-    #     pass
 
     def test_get(self):
         ret_val = self.client.get(self.url)
@@ -156,42 +137,38 @@ class TestClient(unittest.TestCase):
                                    'key3': 'value3'})
 
     def test_options(self):
-        ret_val = self.client.options('https://example.com')
+        ret_val = self.client.options(self.url)
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
     def test_put(self):
-        ret_val = self.client.put('https://example.com', data={'k': 'v'})
+        ret_val = self.client.put(self.url, data={'k': 'v'})
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
     def test_post(self):
-        ret_val = self.client.post('https://example.com', data={'k': 'v'})
+        ret_val = self.client.post(self.url, data={'k': 'v'})
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
-    @patch('ox3apiclient.requests.delete')
-    @patch('ox3apiclient.Client.log_request')
-    def test_delete(self, mock_client_log_request, mock_requests_delete):
-        mock_client_log_request.return_value = None
-        r = Mock()
-        r.status_code = 204
-        mock_requests_delete.return_value = r
-        ret_val = self.client.delete('https://example.com')
-        self.assertEqual(ret_val, [])
+    def test_delete(self):
+        orig_exp_resp_sc = self.ex_resp.status_code
+        orig_exp_resp_json = self.ex_resp.json.return_value
+        try:
+            self.ex_resp.status_code = 204
+            ret_val = self.client.delete('https://example.com')
+            self.assertEqual(ret_val, [])
 
-        r.status_code = 200
-        # r.content = {'key': 'value'}
-        # ret_val = self.client.delete('https://example.com')
-        # mock_requests_delete.return_value.json.side_effect = AttributeError
-        # self.assertEqual(ret_val, {'key': 'value'})
-
-        r.json.return_value = {'key': 'value'}
-        ret_val = self.client.delete('https://example.com')
-        self.assertEqual(ret_val, {'key': 'value'})
+            self.ex_resp.status_code = 200
+            self.ex_resp.json.return_value = {'key': 'value'}
+            ret_val = self.client.delete('https://example.com')
+            self.assertEqual(ret_val, {'key': 'value'})
+        finally:
+            self.ex_resp.status_code = orig_exp_resp_sc
+            self.ex_resp.json.return_value = orig_exp_resp_json
 
     def test_upload_creative(self):
         file_path = os.path.join(os.path.dirname(__file__), 'ox3rctest')
@@ -200,6 +177,7 @@ class TestClient(unittest.TestCase):
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
+
 if __name__ == '__main__':
-    # run this using python -m unittes -v tests from the root dir
+    # run this using python -m unittest -v tests from the root dir
     unittest.main()
