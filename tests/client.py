@@ -6,17 +6,6 @@ import os
 
 
 class TestClient(unittest.TestCase):
-    ex_resp = Mock()
-    ex_resp.request.headers = {'rheader1': 'rvalue1',
-                               'rheader2': 'rvalue2'}
-    ex_resp.headers = {'header1': 'value1',
-                       'header2': 'value2'}
-    ex_resp.text = 'oauth_token=key&oauth_token_secret=secret&oauth_callback_confirmed=true'
-    ex_resp.json.return_value = {'key1': 'value1',
-                                 'key2': 'value2',
-                                 'key3': 'value3'}
-    # Change this depending on needs, default is 200
-    ex_resp.status_code = 200
 
     def setUp(self):
         self.email = 'you@example.com'
@@ -32,16 +21,19 @@ class TestClient(unittest.TestCase):
         self.api_path_v2 = '/ox/4.0'
         self.url = 'https://www.example.com'
 
-        with patch('ox3apiclient.requests.Session') as self.mock_requests_session:
-            with patch('ox3apiclient.Client.log_request') as self.mock_client_log_request:
-                self.mock_requests_session.return_value.get.return_value = self.ex_resp
-                self.mock_requests_session.return_value.post.return_value = self.ex_resp
-                self.mock_requests_session.return_value.put.return_value = self.ex_resp
-                self.mock_requests_session.return_value.options.return_value = self.ex_resp
-                self.mock_requests_session.return_value.delete.return_value = self.ex_resp
+    def _get_client(self, get_return=None, put_return=None, post_return=None, options_return=None, delete_return=None):
+        ex_resp = self._build_mock_response()
 
-                self.mock_client_log_request.return_value = None
-                self.client = ox3apiclient.Client(
+        with patch('ox3apiclient.requests.Session') as mock_requests_session:
+            with patch('ox3apiclient.Client.log_request') as mock_client_log_request:
+                mock_requests_session.return_value.get.return_value = get_return or ex_resp
+                mock_requests_session.return_value.post.return_value = post_return or ex_resp
+                mock_requests_session.return_value.put.return_value = put_return or ex_resp
+                mock_requests_session.return_value.options.return_value = options_return or ex_resp
+                mock_requests_session.return_value.delete.return_value = delete_return or ex_resp
+
+                mock_client_log_request.return_value = None
+                return ox3apiclient.Client(
                     email=self.email,
                     password=self.password,
                     domain=self.domain,
@@ -52,63 +44,75 @@ class TestClient(unittest.TestCase):
                     access_token_url=self.access_token_url,
                     authorization_url=self.authorization_url)
 
+    def _build_mock_response(self):
+        resp = Mock()
+        resp.request.headers = {'rheader1': 'rvalue1',
+                                'rheader2': 'rvalue2'}
+        resp.headers = {'header1': 'value1',
+                        'header2': 'value2'}
+        resp.text = 'oauth_token=key&oauth_token_secret=secret&oauth_callback_confirmed=true'
+        resp.json.return_value = {'key1': 'value1',
+                                  'key2': 'value2',
+                                  'key3': 'value3'}
+
+        resp.status_code = 200
+        return resp
+
     def test_fetch_request_token(self):
         # Authorized Case
-        ret_val = self.client.fetch_request_token()
+        resp = self._build_mock_response()
+        client = self._get_client(post_return=resp)
+
+        ret_val = client.fetch_request_token()
         self.assertTrue(isinstance(ret_val, dict))
-        self.assertEqual(
-            (ret_val['secret'], ret_val['key']), ('secret', 'key'))
-        # UnAuthorized Case
-        self.ex_resp.status_code = 401
-        with self.assertRaises(ox3apiclient.OAuthException):
-            self.client.fetch_request_token()
+        self.assertEqual((ret_val['secret'], ret_val['key']), ('secret', 'key'))
 
-    @patch('ox3apiclient.Client.fetch_request_token')
-    @patch('ox3apiclient.Client.log_request')
-    def test_authorize_token(self,
-                             mock_client_log_request,
-                             mock_fetch_request_token):
+        # Unauthorized Case
+        resp.status_code = 401
+        with self.assertRaises(ox3apiclient.OAuthException):
+            client.fetch_request_token()
+
+    def test_authorize_token(self):
         # mock the post response, and do some setup
-        r = Mock()
+        r = self._build_mock_response()
         r.text = 'oauth_verifier=verifier'
-        self.mock_requests_session.return_value.post.return_value = r
-        mock_client_log_request.return_value = None
-        mock_fetch_request_token.return_value = {'key': 'key',
-                                                 'secret': 'secret'}
-        self.client._token = {'key': 'key',
-                              'secret': 'secret'}
+        r.return_value = {'key': 'key', 'secret': 'secret'}
+        client = self._get_client(post_return=r)
+        client._token = {'key': 'key', 'secret': 'secret'}
 
-        # UnAuthorized Case
+        # Unauthorized Case
         r.status_code = 401
         with self.assertRaises(ox3apiclient.OAuthException):
-            self.client.authorize_token()
+            client.authorize_token()
+
         # Authorized Case
         r.status_code = 200
-        self.client.authorize_token()
-        self.assertEqual(self.client._token['verifier'], 'verifier')
+        client.authorize_token()
+        self.assertEqual(client._token['verifier'], 'verifier')
 
-    @patch('requests_oauthlib.OAuth1')
-    @patch('ox3apiclient.Client.log_request')
-    def test_fetch_access_token(self, mock_client_log_request, mock_oauth1):
+    def test_fetch_access_token(self):
         # mock the OAuth1 and session post response
-        mock_oauth1.return_value = 'oauth'
-        r = Mock()
+        r = self._build_mock_response()
         r.text = 'oauth_token=key'
-        self.mock_requests_session.return_value.post.return_value = r
-        self.client._token = {'key': 'key',
-                              'secret': 'secret',
-                              'verifier': 'verifier'}
+        r.return_value = 'oauth_token=key'
+        client = self._get_client(post_return=r)
+        client._token = {'key': 'key',
+                         'secret': 'secret',
+                         'verifier': 'verifier'}
 
-        # UnAuthorized Case
+        # Unauthorized Case
         r.status_code = 401
         with self.assertRaises(ox3apiclient.OAuthException):
-            self.client.fetch_access_token()
+            client.fetch_access_token()
+
         # Authorized Case
         r.status_code = 200
-        self.assertEqual(self.client.fetch_access_token(), 'key')
+        self.assertEqual(client.fetch_access_token(), 'key')
 
     def test_validate_session(self):
-        ret_val = self.client.validate_session()
+        client = self._get_client()
+
+        ret_val = client.validate_session()
         self.assertEqual(ret_val,
                          'oauth_token=key&'
                          'oauth_token_secret=secret&'
@@ -119,60 +123,63 @@ class TestClient(unittest.TestCase):
             with patch('ox3apiclient.Client.authorize_token') as mock_authorize_token:
                 with patch('ox3apiclient.Client.fetch_access_token') as mock_fetch_access_token:
                     with patch('ox3apiclient.Client.validate_session') as mock_validate_session:
+                        client = self._get_client()
                         mock_fetch_request_token.return_value = None
                         mock_authorize_token.return_value = None
                         mock_fetch_access_token.return_value = None
                         mock_validate_session.return_value = None
-                        ret_val = self.client.logon()
+                        ret_val = client.logon()
                         self.assertTrue(isinstance(ret_val, ox3apiclient.Client))
 
     def test_logoff(self):
-        ret_val = self.client.logoff()
+        client = self._get_client()
+        ret_val = client.logoff()
         self.assertTrue(isinstance(ret_val, ox3apiclient.Client))
 
     def test_get(self):
-        ret_val = self.client.get(self.url)
+        client = self._get_client()
+        ret_val = client.get(self.url)
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
     def test_options(self):
-        ret_val = self.client.options(self.url)
+        client = self._get_client()
+        ret_val = client.options(self.url)
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
     def test_put(self):
-        ret_val = self.client.put(self.url, data={'k': 'v'})
+        client = self._get_client()
+        ret_val = client.put(self.url, data={'k': 'v'})
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
     def test_post(self):
-        ret_val = self.client.post(self.url, data={'k': 'v'})
+        client = self._get_client()
+        ret_val = client.post(self.url, data={'k': 'v'})
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
 
     def test_delete(self):
-        orig_exp_resp_sc = self.ex_resp.status_code
-        orig_exp_resp_json = self.ex_resp.json.return_value
-        try:
-            self.ex_resp.status_code = 204
-            ret_val = self.client.delete('https://example.com')
-            self.assertEqual(ret_val, [])
+        r = self._build_mock_response()
+        r.status_code = 204
+        client = self._get_client(delete_return=r)
+        ret_val = client.delete('https://example.com')
+        self.assertEqual(ret_val, [])
 
-            self.ex_resp.status_code = 200
-            self.ex_resp.json.return_value = {'key': 'value'}
-            ret_val = self.client.delete('https://example.com')
-            self.assertEqual(ret_val, {'key': 'value'})
-        finally:
-            self.ex_resp.status_code = orig_exp_resp_sc
-            self.ex_resp.json.return_value = orig_exp_resp_json
+        r.status_code = 200
+        r.json.return_value = {'key': 'value'}
+        ret_val = client.delete('https://example.com')
+        self.assertEqual(ret_val, {'key': 'value'})
 
     def test_upload_creative(self):
         file_path = os.path.join(os.path.dirname(__file__), 'ox3rctest')
-        ret_val = self.client.upload_creative('123456789', file_path)
+        client = self._get_client()
+        ret_val = client.upload_creative('123456789', file_path)
         self.assertEqual(ret_val, {'key1': 'value1',
                                    'key2': 'value2',
                                    'key3': 'value3'})
