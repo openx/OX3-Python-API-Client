@@ -16,7 +16,7 @@ setup(name='ox3apiclient',
       description='Client to connect to OpenX Enterprise API.',
       long_description='Client to connect to OpenX Enterprise API.',
       packages=find_packages(),
-      install_requires=['requests_oauthlib'],
+      install_requires=['six','requests_oauthlib'],
       classifiers=[
         'Environment :: Console',
         'Environment :: Web Environment',
