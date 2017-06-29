@@ -90,8 +90,3 @@ class ClientFromFileTestCase(unittest.TestCase):
         loaded_values.sort()
 
         self.assertEqual(loaded_values, test_values)
-
-
-if __name__ == '__main__':
-    # run this using python -m unittes -v tests from the root dir
-    unittest.main()
