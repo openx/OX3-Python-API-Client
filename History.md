@@ -8,7 +8,7 @@
  * Fixed: packaging for Pypi
  * Added: license information
 
-0.5.0 / 2013-06-09
+0.5.0 / 2015-07-26
 ==================
  * Replaced: urllib2 with requests package
  * Replaced: oauth2 with requests_oauthlib package

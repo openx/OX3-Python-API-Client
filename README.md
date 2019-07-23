@@ -14,7 +14,7 @@ In addition debugging is now available via the standard python logging facility.
 
 See the [requests documentation](http://docs.python-requests.org/en/latest/) for details.
 
-Basic usage with debugging enabled:
+Basic usage:
 
 ````python
 import ox3apiclient
