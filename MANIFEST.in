@@ -1,0 +1,3 @@
+include History.md
+include LICENSE.txt
+include test/ox3rctest
