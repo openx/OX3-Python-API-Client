@@ -1,3 +1,8 @@
+
+0.6.1 / 2019-07-23
+=================
+  * Add ODS endpoint to supported endpoint list
+
 0.6.0 / 2017-06-19
 ==================
  * Added: Python 3 compatibility
@@ -23,7 +28,7 @@
 0.3.1 / 2013-06-04
 ==================
  * Removed: Realm Support
-     * Realm can still be given, but has no effect
+ * Realm can still be given, but has no effect
  * Fixed: Unicode encoding error in REST POSTing
 
 0.3.0 / 2013-03-18
