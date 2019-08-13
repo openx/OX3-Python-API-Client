@@ -8,7 +8,7 @@ from pprint import pformat
 import random
 import json
 from six.moves.urllib.parse import parse_qs, urlparse
-
+from urllib import request, parse
 import requests
 from requests_oauthlib import OAuth1
 
@@ -17,9 +17,11 @@ __version__ = '0.6.0'
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
 AUTHORIZATION_URL = 'https://sso.openx.com/login/process'
+#AUTHORIZATION_URL = 'https://sso.openx.com/index/authorize'
 API_PATH_V1 = '/ox/3.0'
 API_PATH_V2 = '/ox/4.0'
 API_PATH_SSO = '/api'
+ODS_PATH_V1 = '/data/1.0'
 ACCEPTABLE_PATHS = (API_PATH_V1, API_PATH_V2, API_PATH_SSO)
 JSON_PATHS = (API_PATH_V2,)
 HTTP_METHOD_OVERRIDES = ['DELETE', 'PUT', 'OPTIONS']
@@ -50,7 +52,7 @@ class Client(object):
                  request_token_url=REQUEST_TOKEN_URL,
                  access_token_url=ACCESS_TOKEN_URL,
                  authorization_url=AUTHORIZATION_URL,
-                 api_path=API_PATH_V1,
+                 api_path=API_PATH_V2,
                  email=None,
                  password=None,
                  http_proxy=None,
@@ -166,6 +168,7 @@ class Client(object):
         if response.status_code != 200:
             raise OAuthException("OAuth token request failed (%s) %s" % (response.status_code, response.text))
         credentials = parse_qs(response.text)
+
         self._token = {'key': credentials['oauth_token'][0],
                        'secret': credentials['oauth_token_secret'][0]}
         return self._token
@@ -183,18 +186,14 @@ class Client(object):
 
         if not email or not password:
             raise Exception('Missing email or password')
-
         data = {
             'email': email,
             'password': password,
             'oauth_token': self._token['key']}
-
-        response = self._session.post(url=self.authorization_url, data=data, timeout=self.timeout)
+        response = requests.post(url =self.authorization_url, data=data)
         self.log_request(response)
         if response.status_code != 200:
             raise OAuthException("OAuth login failed (%s) %s" % (response.status_code, response.text))
-
-        # set token verifier
         self._token['verifier'] = parse_qs(response.text)['oauth_verifier'][0]
 
     def fetch_access_token(self):
@@ -267,7 +266,9 @@ class Client(object):
         if self.api_path == API_PATH_V1:
             response = self._session.delete(self._resolve_url('/a/session'), timeout=self.timeout)
         elif self.api_path == API_PATH_V2:
-            response = self._session.delete(self._resolve_url('/session'), timeout=self.timeout)
+            url = self._resolve_url('/session')
+            delete_url = url[1] + url[2] + url[3]
+            response = self._session.delete(delete_url, timeout=self.timeout)
         elif self.api_path == API_PATH_SSO:
             oauth = OAuth1(client_key=self.consumer_key,
                            resource_owner_key=self._token,
@@ -289,14 +290,13 @@ class Client(object):
 
         """
         parse_res = urlparse(url)
-
         # 2.4 returns a tuple instead of ParseResult. Since ParseResult is a
         # subclass or tuple we can access URL components similarly across
         # 2.4 - 2.7. Yay!
 
         # If there is no scheme specified we create a fully qualified URL.
         if not parse_res[0]:
-            url = '%s://%s%s%s' % (self.scheme, self.domain, self.api_path,
+            url =  (self.scheme, self.domain, self.api_path,
                                    parse_res[2])
             if parse_res[4]:
                 url = url + '?' + parse_res[4]
@@ -317,7 +317,38 @@ class Client(object):
         """Issue a GET request to the given URL or API shorthand
 
         """
-        response = self._session.get(self._resolve_url(url), timeout=self.timeout)
+        url = self._resolve_url(url)
+        HEADERS = {
+            'cookie': "openx3_access_token=" + self._token,
+            'content-type': "application/json"
+        }
+        self.headers = HEADERS
+        session_url = url[1] + url[2] + url[3]
+        response = self._session.get(session_url, cookies = {},headers = HEADERS, timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        return self._response_value(response)
+    
+    def report_get(self, url):
+        HEADERS = {
+            'cookie': "openx3_access_token=" + self._token,
+            'content-type': "application/json"
+        }
+        field_url =  self.domain + url
+        response = self._session.get(field_url, headers = HEADERS, timeout=self.timeout)
+        self.log_request(response)
+        response.raise_for_status()
+        return self._response_value(response)
+    
+    def report_post(self, url, data):
+        HEADERS = {
+            'cookie': "openx3_access_token=" + self._token,
+            'content-type': "application/json"
+        }
+        report_post_url = self.domain + url
+        print(json.dumps(data))
+        #response = self._session.post(post_url, data=json.dumps(data), timeout=self.timeout)
+        response = requests.request("POST",report_post_url, data=json.dumps(data),  headers = self.headers,  timeout=self.timeout)
         self.log_request(response)
         response.raise_for_status()
         return self._response_value(response)
@@ -347,13 +378,17 @@ class Client(object):
         response.raise_for_status()
         return self._response_value(response)
 
-    def post(self, url, data=None):
+    def post(self, url, data):
         """Issue a POST request to url (either a full URL or API
         shorthand) with the data.
 
         """
         if self.api_path in JSON_PATHS:
-            response = self._session.post(self._resolve_url(url), data=json.dumps(data), timeout=self.timeout)
+            url = self._resolve_url(url)
+            post_url = url[1] + url[2] + url[3]
+            print(json.dumps(data))
+            #response = self._session.post(post_url, data=json.dumps(data), timeout=self.timeout)
+            response = requests.request("POST",post_url, data=json.dumps(data),  headers = self.headers,  timeout=self.timeout)
         else:
             response = self._session.post(self._resolve_url(url), data=data, timeout=self.timeout)
         self.log_request(response)
