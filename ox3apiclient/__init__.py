@@ -112,7 +112,6 @@ class Client(object):
         self._session.mount('http://', adapter)
         self._session.mount('https://', adapter)
 
-
         # set supplied headers and proxies
         if headers:
             self._session.headers.update(headers)
