@@ -1,4 +1,7 @@
-
+0.6.2 / 2021-03-10
+=================
+  * Added Retry policy to API Client
+  
 0.6.1 / 2019-07-23
 =================
   * Add ODS endpoint to supported endpoint list

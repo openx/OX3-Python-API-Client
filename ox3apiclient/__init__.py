@@ -8,11 +8,12 @@ from pprint import pformat
 import random
 import json
 from six.moves.urllib.parse import parse_qs, urlparse
-
 import requests
+from requests.sessions import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from requests_oauthlib import OAuth1
 
-__version__ = '0.6.1'
+__version__ = '0.6.2'
 
 REQUEST_TOKEN_URL = 'https://sso.openx.com/api/index/initiate'
 ACCESS_TOKEN_URL = 'https://sso.openx.com/api/index/token'
@@ -100,7 +101,18 @@ class Client(object):
 
         # You shouldn't need to access the token and session objects directly so we'll keep them private.
         self._token = None
+
+        retry_strategy = Retry(connect=5,  # number of retries if we can't connect to server
+                               read=5,  # number of retries if we can't read response
+                               status_forcelist=(502, ),  # we'll retry when status will be 502 (e.g API deploy)
+                               backoff_factor=0.2)  # backoff factor for retry (0.0, 0.5, 1.5)
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        # new session with mounting for protocols
         self._session = requests.Session()
+        self._session.mount('http://', adapter)
+        self._session.mount('https://', adapter)
+
+
         # set supplied headers and proxies
         if headers:
             self._session.headers.update(headers)
