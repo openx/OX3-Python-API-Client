@@ -1,4 +1,8 @@
 
+0.6.1 / 2021-09-07
+=================
+  * Migration to Google Artifact Registry
+
 0.6.1 / 2019-07-23
 =================
   * Add ODS endpoint to supported endpoint list

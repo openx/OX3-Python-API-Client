@@ -67,6 +67,14 @@ python setup.py install
 ````
 this will install the current dependencies.
 
+## Releasing 
+````shell
+pip3 install twine wheel
+python3 setup.py bdist_wheel
+twine upload --repository-url https://us-central1-pypi.pkg.dev/ox-registry-prod/ox-pypi-release --verbose dist/*
+
+````
+
 ## Authentication
 
 The recommended method of authentication is to use `ox3apiclient.client_from_file`.
