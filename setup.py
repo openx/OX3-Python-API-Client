@@ -26,7 +26,7 @@ setup(name='ox3apiclient',
     long_description_content_type="text/markdown",
     packages=find_packages(),
     zip_safe=True,
-    install_requires=['six','requests_oauthlib'],
+    install_requires=['six==2.26.0', 'requests_oauthlib==1.3.0'],
     classifiers=[
         'Environment :: Console',
         'Environment :: Web Environment',
@@ -44,7 +44,7 @@ setup(name='ox3apiclient',
     ],
     test_suite='nose.collector',
     tests_require=[
-        'nose',
+        'nose==1.3.7',
         'mock; python_version < "3.3"'
     ]
 )
